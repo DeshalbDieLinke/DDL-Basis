@@ -1,4 +1,4 @@
-module myapp
+module deshalbdielinke
 
 go 1.22.2
 
