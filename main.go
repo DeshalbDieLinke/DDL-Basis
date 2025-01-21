@@ -12,6 +12,6 @@ func main() {
 	
 	e := echo.New()
 	e.GET("/", endpoints.HelloWorld)
-	e.Logger.Fatal(e.Start(":1312"))
+	e.Logger.Fatal(e.StartAutoTLS(":443"))
 
 }
