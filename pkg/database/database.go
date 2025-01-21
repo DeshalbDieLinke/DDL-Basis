@@ -17,12 +17,13 @@ func StartDatabase() {
 	db.AutoMigrate(&content.Content{})
 
 	// Create
-	db.Create(&content.Content{Title: "D42", Content: "Content 1", ContentType: "text", Uri: "uri", Author: "author"})
+	db.Create(&content.Content{Title: "D42", Description: "The Answer to the Ultimate Question of Life, the Universe, and Everything", ContentType: "text"})
 
 	// Read
 	var pieceContent content.Content
 	// db.First(&pieceContent, 0) // find product with integer primary key
-	db.First(&pieceContent, "Title = ?", "D42") // find product with code D42
+	db.First(&pieceContent, "title = ?", "D42") // find product with code D42
+	
 
 	// Update - update product's price to 200
 	// db.Model(&pieceContent).Update("Price", 200)
