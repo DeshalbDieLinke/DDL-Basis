@@ -11,6 +11,6 @@ type Content struct {
 	ContentType string
 	Uri *string
 	Author *string
-	Topics []string
+	Topics string
 	Official bool
 }

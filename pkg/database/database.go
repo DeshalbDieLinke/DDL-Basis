@@ -2,12 +2,17 @@ package database
 
 import (
 	content "deshalbdielinke/pkg/database/models"
+	"deshalbdielinke/pkg/utils"
+	"fmt"
+	"log"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func StartDatabase() {
+	
+
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to connect database")
@@ -15,14 +20,23 @@ func StartDatabase() {
 
 	// Migrate the schema
 	db.AutoMigrate(&content.Content{})
-
-	// Create
-	db.Create(&content.Content{Title: "D42", Description: "The Answer to the Ultimate Question of Life, the Universe, and Everything", ContentType: "text"})
+	contentItems, err := utils.GetMaterial()
+	if err != nil { 
+		print("Error getting material")
+	}
+	for _, item := range contentItems {
+		db.Create(&item)
+	}
+	// db.Create(&content.Content{Title: "Test", Description: "Test", ContentType: "Test", Topics: "Test", Official: true})
 
 	// Read
 	var pieceContent content.Content
 	// db.First(&pieceContent, 0) // find product with integer primary key
-	db.First(&pieceContent, "title = ?", "D42") // find product with code D42
+	result := db.First(&pieceContent)
+	if result.Error != nil {
+		log.Fatalf("Error fetching record: %v", result.Error)
+	}
+	fmt.Printf("Test: %v", pieceContent.Title )
 	
 
 	// Update - update product's price to 200
