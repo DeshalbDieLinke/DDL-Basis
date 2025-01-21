@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func StartDatabase() {
+func StartDatabase() *gorm.DB{
 	
 
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
@@ -46,4 +46,5 @@ func StartDatabase() {
 
 	// Delete - delete product
 	// db.Delete(&pieceContent, 1)
+	return db
 }
