@@ -48,4 +48,4 @@ jobs:
           pkill ddl-server || echo "No server running to stop"
           
           # Start the new server in the background
-          nohup /root/DDL-Server/ddl-server > /root/DDL-Server/ddl-server.log 2>&1 &
+          nohup /root/DDL-Server/build/ddl-server > /root/DDL-Server/ddl-server.log 2>&1 &
