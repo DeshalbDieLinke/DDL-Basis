@@ -33,7 +33,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         port: 22
         source: "build/ddl-server"
-        target: "~/ddl-server"
+        target: "~/DDL-Server"
 
     # Step 5: Restart the server remotely
     - name: Restart server
@@ -47,8 +47,5 @@ jobs:
           # Stop the currently running server (if any)
           pkill ddl-server || echo "No server running to stop"
           
-          # Move binary into place and clean up source code
-          mv ~/ddl-server/ddl-server /usr/local/bin/ddl-server
-          
           # Start the new server in the background
-          nohup /usr/local/bin/ddl-server/build/ddl-server > /var/log/ddl-server.log 2>&1 &
+          nohup /root/DDL-Server/ddl-server > /root/DDL-Server/ddl-server.log 2>&1 &

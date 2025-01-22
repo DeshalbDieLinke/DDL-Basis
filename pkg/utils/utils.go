@@ -10,11 +10,7 @@ func GetMaterial() ([]content.Content, error) {
 	contentItems := []content.Content{}
 	var localErr error
 	
-	materialDir, err := GetMaterialPath()
-	if err != nil {
-		// handle the error appropriately
-		return contentItems, err
-	}
+	materialDir := GetMaterialPath()
 	filepath.WalkDir(materialDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			localErr = err
@@ -32,14 +28,6 @@ func GetMaterial() ([]content.Content, error) {
 
 
 // GetMaterialPath returns the absolute path to the public/material/ folder.
-func GetMaterialPath() (string, error) {
-	// Get the current working directory
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	// Build the absolute path to the material folder
-	materialPath := filepath.Join(wd, "public", "material")
-	return materialPath, nil
+func GetMaterialPath() string {
+	return "/root/material"
 }
