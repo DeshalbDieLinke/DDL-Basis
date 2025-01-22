@@ -2,6 +2,8 @@ package utils
 
 import (
 	content "ddl-server/pkg/database/models"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -15,6 +17,7 @@ func GetMaterial() ([]content.Content, error) {
 		// handle the error appropriately
 		return contentItems, err
 	}
+	fmt.Printf("Material path Print: %s", materialDir)
 	filepath.WalkDir(materialDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			localErr = err
@@ -41,5 +44,7 @@ func GetMaterialPath() (string, error) {
 
 	// Build the absolute path to the material folder
 	materialPath := filepath.Join(wd, "public", "material")
+	log.Printf("Material path: %s", materialPath)
+	fmt.Printf("Material path Print: %s", materialPath)
 	return materialPath, nil
 }
