@@ -10,14 +10,17 @@ import (
 func main() {
 	// db := database.StartDatabase()
 
-	echo := echo.New()
+	e := echo.New()
 
 	// Cache the certificate to prevent rate limiting
-	echo.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
-	echo.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
+	e.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
+	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
 
-	echo.GET("/", endpoints.HelloWorld)
-	echo.GET("/content", endpoints.GetContent)
-	echo.Logger.Fatal(echo.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
+	e.GET("/", endpoints.HelloWorld)
+	e.GET("/content", endpoints.GetContent)
+	e.Any("/*", func(context echo.Context) error { 
+		return context.String(404, "Not Found")
+	})
+	e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
 
 }
