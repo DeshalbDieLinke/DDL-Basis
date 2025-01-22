@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func GetMaterial() ([]content.Content, error) {
@@ -41,7 +42,7 @@ func GetMaterialPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	wd = strings.ReplaceAll(wd, "build/", "")
 	// Build the absolute path to the material folder
 	materialPath := filepath.Join(wd, "public", "material")
 	log.Printf("Material path: %s", materialPath)
