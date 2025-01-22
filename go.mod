@@ -1,6 +1,6 @@
 module ddl-server
 
-go 1.22.2
+go 1.23.5
 
 require (
 	github.com/labstack/echo/v4 v4.13.3
