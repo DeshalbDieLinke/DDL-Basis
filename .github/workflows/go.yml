@@ -48,7 +48,7 @@ jobs:
           pkill ddl-server || echo "No server running to stop"
           
           # Move binary into place and clean up source code
-          mv ~/ddl-server /usr/local/bin/ddl-server
+          mv ~/ddl-server/ddl-server /usr/local/bin/ddl-server
           
           # Start the new server in the background
           nohup /usr/local/bin/ddl-server > /var/log/ddl-server.log 2>&1 &
