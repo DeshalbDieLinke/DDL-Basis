@@ -1,7 +1,7 @@
 package main
 
 import (
-	"deshalbdielinke/pkg/endpoints"
+	"ddl-server/pkg/endpoints"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/acme/autocert"
@@ -18,6 +18,6 @@ func main() {
 
 	echo.GET("/", endpoints.HelloWorld)
 	echo.GET("/content", endpoints.GetContent)
-	echo.Logger.Fatal(echo.StartAutoTLS(":443"))
+	echo.Logger.Fatal(echo.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
 
 }

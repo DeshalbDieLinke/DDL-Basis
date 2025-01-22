@@ -9,13 +9,46 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+    # Step 1: Check out the repository
     - uses: actions/checkout@v2
-    - name: Push to DigitalOcean
+
+    # Step 2: Set up Go environment
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: "1.20" # Use the appropriate Go version
+
+    # Step 3: Build the Go binary
+    - name: Build Go binary
+      run: |
+        mkdir -p build
+        go build -o build/ddl-server prod.go 
+
+    # Step 4: Deploy the binary to the server
+    - name: Push binary to DigitalOcean
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.DROPLET_IP }}
         username: root
         key: ${{ secrets.SSH_KEY }}
         port: 22
-        source: "."
-        target: "~/DDL-BASIS"
+        source: "build/ddl-server"
+        target: "~/ddl-server"
+
+    # Step 5: Restart the server remotely
+    - name: Restart server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.DROPLET_IP }}
+        username: root
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+        script: |
+          # Stop the currently running server (if any)
+          pkill ddl-server || echo "No server running to stop"
+          
+          # Move binary into place and clean up source code
+          mv ~/ddl-server /usr/local/bin/ddl-server
+          
+          # Start the new server in the background
+          nohup /usr/local/bin/ddl-server > /var/log/ddl-server.log 2>&1 &

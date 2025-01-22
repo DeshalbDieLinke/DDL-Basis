@@ -1,7 +1,7 @@
 package utils
 
 import (
-	content "deshalbdielinke/pkg/database/models"
+	content "ddl-server/pkg/database/models"
 	"os"
 	"path/filepath"
 )

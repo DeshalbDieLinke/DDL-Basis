@@ -1,7 +1,7 @@
 package endpoints
 
 import (
-	"deshalbdielinke/pkg/utils"
+	"ddl-server/pkg/utils"
 	"encoding/json"
 	"net/http"
 

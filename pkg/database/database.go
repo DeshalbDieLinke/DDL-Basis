@@ -1,8 +1,8 @@
 package database
 
 import (
-	content "deshalbdielinke/pkg/database/models"
-	"deshalbdielinke/pkg/utils"
+	content "ddl-server/pkg/database/models"
+	"ddl-server/pkg/utils"
 	"fmt"
 	"log"
 
