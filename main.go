@@ -13,7 +13,7 @@ func main() {
 	echo := echo.New()
 
 	// Cache the certificate to prevent rate limiting
-	echo.AutoTLSManager.Cache = autocert.DirCache("~/certs")
+	echo.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
 	echo.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
 
 	echo.GET("/", endpoints.HelloWorld)
