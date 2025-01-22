@@ -2,7 +2,6 @@ package utils
 
 import (
 	content "ddl-server/pkg/database/models"
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -42,6 +41,5 @@ func GetMaterialPath() (string, error) {
 
 	// Build the absolute path to the material folder
 	materialPath := filepath.Join(wd, "public", "material")
-	fmt.Printf("Material path: %s\n", materialPath)
 	return materialPath, nil
 }

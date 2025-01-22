@@ -21,7 +21,7 @@ func main() {
 	e.Any("/*", func(context echo.Context) error { 
 		return context.String(404, "Not Found")
 	})
-	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
-	e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
+	// e.Logger.Fatal(e.Start(":8080"))
 
 }
