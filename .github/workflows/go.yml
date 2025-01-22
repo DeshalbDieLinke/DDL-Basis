@@ -51,4 +51,4 @@ jobs:
           mv ~/ddl-server/ddl-server /usr/local/bin/ddl-server
           
           # Start the new server in the background
-          nohup /usr/local/bin/ddl-server > /var/log/ddl-server.log 2>&1 &
+          nohup /usr/local/bin/ddl-server/build/ddl-server > /var/log/ddl-server.log 2>&1 &
