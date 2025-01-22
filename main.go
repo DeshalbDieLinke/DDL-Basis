@@ -8,10 +8,10 @@ import (
 
 func main() {
 	// db := database.StartDatabase()
-	
-	
-	e := echo.New()
-	e.GET("/", endpoints.HelloWorld)
-	e.Logger.Fatal(e.StartAutoTLS(":443"))
+
+	echo := echo.New()
+	echo.GET("/", endpoints.HelloWorld)
+	echo.GET("/content", endpoints.GetContent)
+	echo.Logger.Fatal(echo.StartAutoTLS(":443"))
 
 }
