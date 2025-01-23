@@ -2,11 +2,19 @@ package utils
 
 import (
 	content "ddl-server/pkg/database/models"
+	"ddl-server/pkg/types"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
+
+
+
 
 func GetMaterial() ([]content.Content, error) {
 	contentItems := []content.Content{}
@@ -46,3 +54,28 @@ func GetMaterialPath() (string, error) {
 	log.Printf("Material path: %s \n", materialPath)
 	return materialPath, nil
 }
+
+// Function to generate a token
+func GenerateToken(email string, accessLevel int) (string, error) {
+	// Set custom claims
+	claims := &types.JWTClaims{
+		Email:       email,
+		AccessLevel: accessLevel,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 10)), // Token valid for 24 hours
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	// Create the token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Sign the token with the secret key
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %v", err)
+	}
+
+	return tokenString, nil
+}
+

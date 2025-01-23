@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Form Submission</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <div class="left">
+            <div class="form-example">
+                <label for="password">Enter your password: </label>
+                <input id="password" type="password" name="password" required>
+            </div>
+            <div class="form-example">
+                <label for="token">Enter the token provided to you: </label>
+                <input id="token" type="token" name="token" required>
+            </div>
+            <div class="form-example">
+                <label for="email">Enter your email: </label>
+                <input id="email" type="email" name="email" required />
+            </div>
+        <button id="sub" type="button">Register</button> <!-- Ensure type="button" -->
+        <button id="login" type="button">Login</button> <!-- Ensure type="button" -->
+        <button id="logout" type="button">Logout</button> <!-- Ensure type="button" -->
+        <button id="getUser" type="button">Get User</button> <!-- Ensure type="button" -->
+
+        <div id="responseMessage"></div>
+        <div id="currentUser"> </div>
+        </div>
+        <div class="right">
+            <h1>Upload new Piece</h1>
+            <form id="upload" >
+                <label for="description">Enter Image description (alt text):</label><br>
+                <input type="text" id="description" name="description"><br>
+                <label for="title">Enter Title:</label><br>
+                <input type="title" id="title" name="title"><br>
+                <input type="file" id="image" name="image"><br>
+                <input type="submit" value="Submit">
+            </form>
+        </div>
+        <script>
+            const currentUser = document.getElementById("currentUser");
+            const messageDiv = document.getElementById("responseMessage");
+            const logoutButton = document.getElementById("logout");
+            const getUserButton = document.getElementById("getUser");
+            const uploadForm = document.getElementById("upload");
+
+            uploadForm.addEventListener("submit", (event) => {
+                event.preventDefault();
+                console.log("uploading");
+                const formData = new FormData(uploadForm);
+                fetch("http://localhost:8080/auth/create", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        Authorization: localStorage.getItem("token"),
+                    },
+                })
+                .then((response) => response.json())
+                .then((result) => {
+                    if (result.ok) 
+                    console.log("Success:", result);
+                    else 
+                    console.log("Error:", result);
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                });
+            })
+
+            getUserButton.addEventListener("click", async (event) => {
+                console.log("getUser");
+                if (await loginToken() == true ) {
+                    messageDiv.innerHTML = `<p style="color: green;">Login not required! Current user: ${localStorage.getItem("email")}</p>`;
+                } else {
+                    messageDiv.innerHTML = `<p style="color: red;">Login required!</p>`;
+                }
+            })
+
+            logoutButton.addEventListener("click", async (event) => {
+                console.log("logout");
+                localStorage.removeItem("token");
+                localStorage.removeItem("email");
+                currentUser.innerHTML = `<p>Logged out!</p>`;
+            });
+
+            async function loginToken() {
+                const token = localStorage.getItem("token");
+                console.log("Using Token: ",token);
+
+                if (token) {
+                    const response = await fetch("http://localhost:8080/login", {
+                        method: "POST",
+                        headers: {
+                            Authorization: token,
+                        },
+                    })
+                    const jsonResult = await response.json();
+                    if (response.ok) {
+                        currentUser.innerHTML = `<p>${jsonResult.message}</p>`;
+                        return true;
+                    } else {
+                        console.log("Token no work: ", jsonResult);
+                    }
+                    return true;
+                } else {
+                    console.log("No token found");
+                }
+                return false;
+
+            }
+
+            // Listen for button click
+            const loginButton = document.getElementById("login");
+            loginButton.addEventListener("click", async (event) => {
+                console.log("login");
+                // getUser();
+                if (await loginToken() == true) {
+                    messageDiv.innerHTML = `<p style="color: green;">Login not required!</p>`;
+                    return;
+                }
+                // Get form data
+                const email = document.getElementById("email").value;
+                const password = document.getElementById("password").value;
+
+                const output = JSON.stringify({ email, password });
+
+                try {
+                    // Send a POST request to the server
+                    const response = await fetch("http://localhost:8080/login", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: output, // Send data as JSON
+                    });
+
+                    // Parse the response
+
+                    console.log(response);
+                    const result = await response.json();
+
+                    // Update the page based on the response
+                    
+                    const messageDiv = document.getElementById("responseMessage");
+                    if (response.ok) {
+                        localStorage.setItem("token", result.token); // Save JWT token to localStorage
+                        localStorage.setItem("email", result.email); // Save email to localStorage
+                        messageDiv.innerHTML = `<p style="color: green;">Logged in successfully! Welcome, ${result.email}!</p>`;
+                    } else {
+                        messageDiv.innerHTML = `<p style="color: red;">Error: ${result.message}</p>`;
+                    }
+                } catch (error) {
+                    // Handle network errors
+                    const messageDiv = document.getElementById("responseMessage");
+                    messageDiv.innerHTML = `<p style="color: red;">Error: Could not login user: ${error}</p>`;
+                    console.error("Error:", error);
+                }
+            });
+            const subButton = document.getElementById("sub");
+            subButton.addEventListener("click", async (event) => {
+                console.log("clicked");
+                // getUser();
+
+                // Get form data
+                const email = document.getElementById("email").value;
+                const password = document.getElementById("password").value;
+                const token = document.getElementById("token").value;
+
+                const output = JSON.stringify({ email, password, token });
+
+                try {
+                    // Send a POST request to the server
+                    const response = await fetch("http://localhost:8080/register", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: output, // Send data as JSON
+                    });
+
+                    // Parse the response
+                    console.log(response);
+                    const result = await response.json();
+
+                    // Update the page based on the response
+                    
+                    const messageDiv = document.getElementById("responseMessage");
+                    if (response.ok) {
+                        messageDiv.innerHTML = `<p style="color: green;">User created successfully! Welcome, ${result.username}!</p>`;
+                    } else {
+                        messageDiv.innerHTML = `<p style="color: red;">Error: ${result.error}</p>`;
+                    }
+                } catch (error) {
+                    // Handle network errors
+                    const messageDiv = document.getElementById("responseMessage");
+                    messageDiv.innerHTML = `<p style="color: red;">Error: Could not create user: ${error}</p>`;
+                    console.error("Error:", error);
+                }
+            });
+        </script>
+    </body>
+</html>
+
+<style>
+    .left {
+        float: left;
+        width: 50%;
+        padding: 10px;
+    }
+
+    .right {
+        float: right;
+        width: 50%;
+        padding: 10px;
+    }
+</style>
