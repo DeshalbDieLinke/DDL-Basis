@@ -23,7 +23,7 @@ import (
 func main() {
 	err:= godotenv.Load("config.env")
 	if err != nil {
-		log.Fatal("Error loading .env file: ", err)
+		log.Printf("Error loading .env file: ", err)
 	}
 
 	log.Print("Starting server")
