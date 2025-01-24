@@ -15,6 +15,7 @@ func HelloWorld(c echo.Context) error {
 	return c.String(http.StatusOK, "Hello, World!")
 }
 
+//TODO Add support for query parameters and search as well as returning the content from the database
 func GetContent(c echo.Context) error {
 	material, err := utils.GetMaterial()
 	if err != nil {

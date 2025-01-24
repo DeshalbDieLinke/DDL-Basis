@@ -9,6 +9,7 @@ import (
 
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/types"
+	DDLErrors "ddl-server/pkg/types/errors"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
@@ -60,7 +61,7 @@ func LoginJwt(c echo.Context) error {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
 	if claims.Email == req.Email {
-		err := db.Where("email = ?", req.Email).First(&user).Error; 
+		err := db.Where("email = ?", req.Email).First(&user).Error
 		if err != nil {
 			return c.JSON(401, map[string]string{"error": "Invalid "})
 
@@ -159,7 +160,7 @@ func Check(c echo.Context) error {
 	claims, err := VerifyToken(string(token), c)
 	if err != nil {
 		log.Printf("Error verifying token: %v", err)
-		return c.JSON(401, map[string]string{"error": "Invalid token"})
+		return c.JSON(DDLErrors.InvalidToken.Code, DDLErrors.InvalidToken.Message)
 
 	}
 	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email})
@@ -173,7 +174,7 @@ func GetTokenFromRequest(c echo.Context) (string, error) {
 		token = c.Request().Header.Get("Authorization")
 	}
 	if token == "" {
-		return "", echo.NewHTTPError(http.StatusUnauthorized, "No token provided")
+		return "", DDLErrors.NoTokenProvided
 	}
 	return token, nil
 }
@@ -185,7 +186,7 @@ func VerifyToken(tokenStr string, c echo.Context) (*types.JWTClaims, error) {
 	if tokenStr == "" {
 		tokenStr, err = GetTokenFromRequest(c)
 		if err != nil || tokenStr == "" {
-			return nil, echo.NewHTTPError(http.StatusUnauthorized, "No token provided")
+			return nil, DDLErrors.NoTokenProvided
 		}
 	}
 
@@ -199,7 +200,7 @@ func VerifyToken(tokenStr string, c echo.Context) (*types.JWTClaims, error) {
 	})
 	if err != nil || !token.Valid {
 		log.Printf("Error verifying token: %v", err)
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Token could not be verified")
+		return nil, DDLErrors.InvalidToken
 	}
 	claims, ok := token.Claims.(*types.JWTClaims)
 	if !ok {

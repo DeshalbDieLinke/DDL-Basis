@@ -1,13 +1,14 @@
-package types
+package DDLErrors
 
 import (
 	"net/http"
 
 	e "github.com/labstack/echo/v4"
-) 
+)
 
 var (
-	InvalidToken  = e.NewHTTPError(http.StatusUnauthorized, "Invalid token")
+	InvalidToken       = e.NewHTTPError(http.StatusUnauthorized, "Invalid token")
 	EmailAlreadyExists = e.NewHTTPError(http.StatusConflict, "Email already exists")
 	InvalidRequest     = e.NewHTTPError(http.StatusBadRequest, "Invalid request")
+	NoTokenProvided    = e.NewHTTPError(http.StatusUnauthorized, "No token provided")
 )
