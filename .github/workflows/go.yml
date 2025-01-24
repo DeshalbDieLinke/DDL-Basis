@@ -22,7 +22,7 @@ jobs:
     - name: Build Go binary
       run: |
         mkdir -p build
-        go build -o build/ddl-server prod.go 
+        go build -o build/ddl-server main.go 
 
     # Step 4: Deploy the binary to the server
     - name: Push binary to DigitalOcean
