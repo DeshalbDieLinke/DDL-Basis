@@ -39,7 +39,8 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"https://deshalbdielinke.de", "https://api.deshalbdielinke.de"},
+		//TODO FIX THIS IN PRODUCTION!!!!!! UNSAFE!!!!
+		AllowOrigins: []string{"*"},
 		AllowMethods: []string{"GET", "POST"},
 	}))
 	e.Use(jwtE.WithConfig(jwtE.Config{
