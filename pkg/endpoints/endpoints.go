@@ -3,6 +3,7 @@ package endpoints
 import (
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/utils"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -74,7 +75,7 @@ func CreateContent(c echo.Context) error {
 	}
 
 	if user.AccessLevel > requiredAccess { 
-		return c.String(http.StatusUnauthorized, "Insufficient access level. "+string(requiredAccess)+" Required "+string(claims.AccessLevel)+" Provided")
+		return c.String(http.StatusUnauthorized, "Insufficient access level. "+fmt.Sprint(requiredAccess)+" Required "+fmt.Sprint(claims.AccessLevel)+" Provided")
 	}
 
 	// USER IS AUTHORIZED TO UPLOAD CONTENT
