@@ -9,18 +9,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// Returns JSON data for users in the database
 func AdminPanel(c echo.Context) error {
 	token := c.Request().Header.Get("Authorization")
 	if token == "" {
 		return c.String(http.StatusUnauthorized, "No token provided")
-	} 
+	}
 	claims, err := ParseToken(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
 
 	if claims.AccessLevel != 0 {
-		return c.String(http.StatusUnauthorized, "Insufficient access level. 0 Required " + fmt.Sprint(claims.AccessLevel) + " Provided")
+		return c.String(http.StatusUnauthorized, "Insufficient access level. 0 Required "+fmt.Sprint(claims.AccessLevel)+" Provided")
 	}
 	db := c.Get("db").(*gorm.DB)
 
