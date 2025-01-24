@@ -169,7 +169,8 @@ func Check(c echo.Context) error {
 func GetTokenFromRequest(c echo.Context) (string, error) {
 	var token string
 
-	token = c.Get("user").(*jwt.Token).Raw
+	// This does not work. Idk why.
+	// token = c.Get("user").(*jwt.Token).Raw 
 	if token == "" {
 		token = c.Request().Header.Get("Authorization")
 	}
