@@ -37,31 +37,35 @@ func LoginJwt(c echo.Context) error {
 		req.Password = c.FormValue("password")
 	}
 
-	tokenStr := c.Request().Header.Get("Authorization")
-
 	// Check if a token was provided
-	if tokenStr != "" && tokenStr != "undefined" {
-		token, err := jwt.ParseWithClaims(tokenStr, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-			// Ensure the signing method is correct
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return secret, nil
-		})
+	// if tokenStr != "" && tokenStr != "undefined" {
+	// 	token, err := jwt.ParseWithClaims(tokenStr, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	// 		// Ensure the signing method is correct
+	// 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	// 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+	// 		}
+	// 		return secret, nil
+	// 	})
 
-		if err != nil || !token.Valid {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token logging in"})
-		}
+	// 	if err != nil || !token.Valid {
+	// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token logging in"})
+	// 	}
 
-		claims, ok := token.Claims.(*types.JWTClaims)
-		if !ok {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token: Claims could not be parsed"})
-		}
-		if err := db.Where("email = ?", req.Email).First(&user).Error; err == nil {
-			return c.JSON(401, map[string]string{"error": "Token valid, Invalid email"})
+	// 	claims, ok := token.Claims.(*types.JWTClaims)
+	// 	if !ok {
+	// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token: Claims could not be parsed"})
+	// 	}
+	claims, err := VerifyToken("", c)
+	if err != nil {
+		return c.JSON(401, map[string]string{"error": "Invalid token"})
+	}
+	if claims.Email == req.Email {
+		err := db.Where("email = ?", req.Email).First(&user).Error; 
+		if err != nil {
+			return c.JSON(401, map[string]string{"error": "Invalid "})
+
 		}
 		return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
-
 	}
 
 	// Validate credentials
