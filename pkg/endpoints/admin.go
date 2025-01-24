@@ -15,7 +15,7 @@ func AdminPanel(c echo.Context) error {
 	if token == "" {
 		return c.String(http.StatusUnauthorized, "No token provided")
 	}
-	claims, err := ParseToken(token)
+	claims, err := VerifyToken(token, c)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
