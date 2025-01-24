@@ -64,6 +64,7 @@ func GenerateToken(email string, accessLevel int) (string, error) {
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 10)), // Token valid for 24 hours
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+
 		},
 	}
 

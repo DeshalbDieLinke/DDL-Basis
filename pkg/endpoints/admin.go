@@ -11,15 +11,10 @@ import (
 
 // Returns JSON data for users in the database
 func AdminPanel(c echo.Context) error {
-	token := c.Request().Header.Get("Authorization")
-	if token == "" {
-		return c.String(http.StatusUnauthorized, "No token provided")
-	}
-	claims, err := VerifyToken(token, c)
+	claims, err := VerifyToken("", c)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
-
 	if claims.AccessLevel != 0 {
 		return c.String(http.StatusUnauthorized, "Insufficient access level. 0 Required "+fmt.Sprint(claims.AccessLevel)+" Provided")
 	}

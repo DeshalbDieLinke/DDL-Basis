@@ -10,6 +10,7 @@ import (
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/types"
 	DDLErrors "ddl-server/pkg/types/errors"
+	"ddl-server/pkg/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
@@ -57,16 +58,15 @@ func LoginJwt(c echo.Context) error {
 	// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token: Claims could not be parsed"})
 	// 	}
 	claims, err := VerifyToken("", c)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "Invalid token"})
-	}
-	if claims.Email == req.Email {
-		err := db.Where("email = ?", req.Email).First(&user).Error
-		if err != nil {
-			return c.JSON(401, map[string]string{"error": "Invalid "})
-
+	if err == nil {
+		if claims.Email == req.Email {
+			err := db.Where("email = ?", req.Email).First(&user).Error
+			if err != nil {
+				return c.JSON(401, map[string]string{"error": "Invalid "})
+	
+			}
+			return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
 		}
-		return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
 	}
 
 	// Validate credentials
@@ -84,7 +84,7 @@ func LoginJwt(c echo.Context) error {
 		// Generate JWT token
 		claims := &types.JWTClaims{
 			Email:       req.Email,
-			AccessLevel: 3,
+			AccessLevel: user.AccessLevel,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), // Token expires in 1 hour
 			},
@@ -109,9 +109,12 @@ func Register(c echo.Context) error {
 	}
 	var newUser NewUser
 
+	// Default access level to user (3)
+	accessLevel := 3
+
 	err := c.Bind(&newUser)
 	if err != nil {
-		return c.JSON(400, map[string]string{"error": "Invalid request: No email or password provided"})
+		return c.JSON(400, map[string]string{"error": "Invalid request"})
 	}
 	if newUser.Email == "" || newUser.Password == "" || newUser.Token == "" {
 		return c.JSON(400, map[string]string{"error": "Invalid request: Empty email | password | token"})
@@ -122,10 +125,13 @@ func Register(c echo.Context) error {
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
+	if claims != nil {
 	if claims.Email != newUser.Email {
 		return c.JSON(401, map[string]string{"error": "Email does not match token"})
 	}
-	accessLevel := claims.AccessLevel
+	log.Printf("Access level: %v", claims.AccessLevel)
+	accessLevel = claims.AccessLevel 
+	} 
 
 	db := c.Get("db").(*gorm.DB)
 	var user models.User
@@ -166,6 +172,42 @@ func Check(c echo.Context) error {
 	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email})
 }
 
+/// Returns a token for a new user based on the input email and access level. Admin Level access is required.
+func NewUserToken(c echo.Context) error {
+	// Check if the user is an admin
+	claims, err := VerifyToken("", c)
+	if err != nil {
+		return c.JSON(401, map[string]string{"error": "Invalid token"})
+	}
+	if claims.AccessLevel != 0 {
+		return c.JSON(401, map[string]string{"error": "Insufficient access level. 0 Required " + fmt.Sprint(claims.AccessLevel) + " Provided"})
+	}
+
+	type NewUser struct {
+		Email       string `json:"email"`
+		AccessLevel int    `json:"accessLevel"`
+	}
+
+	newUser := new(NewUser)
+	if err := c.Bind(&newUser); err != nil {
+		log.Printf("Error binding new user: %v", err)
+		return c.JSON(400, map[string]string{"error": "Invalid request"})
+	}
+
+	// Generate a token for the new user
+	token, err := utils.GenerateToken(newUser.Email, newUser.AccessLevel)
+	if err != nil {
+		return c.JSON(500, map[string]string{"error": "Failed to generate token"})
+	}
+
+	return c.JSON(200, map[string]string{"token": token, "message": "Token generated successfully"})
+}
+
+
+
+// Utility functions
+
+/// GetTokenFromRequest returns the token from the request header
 func GetTokenFromRequest(c echo.Context) (string, error) {
 	var token string
 

@@ -41,8 +41,8 @@ func main() {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//TODO FIX THIS IN PRODUCTION!!!!!! UNSAFE!!!!
 		AllowOrigins: []string{"*"},
-		AllowMethods: []string{"GET", "POST"},
-	}))
+		AllowMethods: []string{echo.GET, echo.POST, echo.OPTIONS},
+		}))
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
 			return !strings.Contains(c.Path(), "/auth"); 
@@ -77,9 +77,10 @@ func main() {
 	// Register Restricted Endpoints
 	restricted := e.Group("/auth")
 	restricted.GET("/profile", endpoints.Profile)
-	restricted.POST("/create", endpoints.CreateContent)
-	restricted.GET("/admin", endpoints.SearchContent)
+	restricted.POST("/upload", endpoints.CreateContent)
+	restricted.GET("/users", endpoints.AdminPanel)
 	restricted.GET("/check", endpoints.Check)
+	restricted.POST("/new-user", endpoints.NewUserToken)
 	restricted.GET("/*", func(c echo.Context) error {
 		log.Printf("Authenticated request")
 		return c.JSON(200, map[string]string{"message": "Authenticated request"})	
@@ -103,7 +104,7 @@ func main() {
 	e.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
 	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
 	
-	e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
-	// e.Logger.Fatal(e.Start(":8080"))
+	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
+	e.Logger.Fatal(e.Start(":8080"))
 
 }

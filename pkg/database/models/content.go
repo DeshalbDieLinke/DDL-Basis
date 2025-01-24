@@ -10,7 +10,8 @@ type Content struct {
 	Content *string
 	ContentType string
 	Uri *string
-	Author *string
+	AuthorID uint 
 	Topics string
 	Official bool
+	FileName string
 }
