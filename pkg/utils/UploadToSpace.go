@@ -2,6 +2,7 @@ package utils
 
 import (
 	"io"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,17 +36,23 @@ func UploadToSpace(file io.ReadSeeker, fileKey string) error {
 
     s3Client := s3.New(newSession)
 
-	// FOR SHAREPICS ONLY
-    // Step 4: Define the parameters of the object you want to upload.
-    object := s3.PutObjectInput{
-        Bucket: aws.String("ddl"), // The path to the directory you want to upload the object to, starting with your Space name.
-        Key:    aws.String(fileKey), // Object key, referenced whenever you want to access this file later.
-        Body:   file, // The object's contents.
-        ACL:    aws.String("public-read"), // Defines Access-control List (ACL) permissions, such as private or public.
-        // Metadata: map[string]*string{ // Required. Defines metadata tags.
-        //                         "x-amz-meta-my-key": aws.String("DEBUG"),
-        //                 },
-    }
+	// Detect content type
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil {
+		return err
+	}
+	file.Seek(0, io.SeekStart) // Reset file pointer
+	contentType := http.DetectContentType(buffer)
+
+	object := s3.PutObjectInput{
+		Bucket:      aws.String("ddl"),
+		Key:         aws.String(fileKey),
+		Body:        file,
+		ACL:         aws.String("public-read"),
+		ContentType: aws.String(contentType),
+	}
+
 
 	_, err = s3Client.PutObject(&object) 
 	if err != nil { 

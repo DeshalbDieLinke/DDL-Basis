@@ -113,6 +113,7 @@ func CreateContent(c echo.Context) error {
 	// Create the content object
 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
 	uri = strings.Replace(uri, " ", "%20", -1)
+	log.Printf("URI: %v", uri)
 	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri}
 	var errorCreatingContent error; 
 
