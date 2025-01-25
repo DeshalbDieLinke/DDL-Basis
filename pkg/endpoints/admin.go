@@ -11,7 +11,11 @@ import (
 
 // Returns JSON data for users in the database
 func AdminPanel(c echo.Context) error {
-	claims, err := VerifyToken("", c)
+	token, err := GetToken(c)
+	if err != nil { 
+		return c.JSON(401, map[string]string{"error": "No token provided"})
+	}
+	claims, err := GetTokenClaims(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}

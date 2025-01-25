@@ -40,8 +40,10 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//TODO FIX THIS IN PRODUCTION!!!!!! UNSAFE!!!!
-		AllowOrigins: []string{"*"},
+		AllowOrigins: []string{"http://127.0.0.1:4321"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.OPTIONS},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowCredentials: true,
 		}))
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
@@ -51,7 +53,20 @@ func main() {
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return &types.JWTClaims{}
 		},
-		TokenLookup: "header:Authorization",
+		TokenLookup: "cookie:token",
+		// TokenLookupFuncs: []middleware.ValuesExtractor{
+		// 	func(c echo.Context) ([]string, error) {
+		// 		// Try to get the token from the cookie first
+		// 		cookie, err := c.Cookie("token")
+		// 		if err == nil && cookie.Value != "" {
+		// 			log.Printf("Token from cookie: %s", cookie.Value)
+		// 			return []string{cookie.Value}, nil
+		// 		}
+		// 		// If no token is found, return an error
+		// 		log.Println("Token not found in cookie or header")
+		// 		return nil, fmt.Errorf("token not found")
+		// 	},
+		// },
 		ParseTokenFunc: func(c echo.Context, auth string) (interface{}, error) {
 			return jwt.ParseWithClaims(auth, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 				// Ensure the signing method is correct
@@ -67,6 +82,7 @@ func main() {
 	e.POST("/register", endpoints.Register)
 	e.POST("/login", endpoints.LoginJwt)
 	e.GET("/", endpoints.HelloWorld)
+	e.GET("/topics", endpoints.Topics)
 	e.GET("/content", endpoints.GetContent)
 	// Register a catch-all route
 	e.Any("/*", func(context echo.Context) error { 
@@ -105,6 +121,6 @@ func main() {
 	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
 	
 	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
-	e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
 
 }

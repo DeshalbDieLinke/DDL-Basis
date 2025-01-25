@@ -38,36 +38,21 @@ func LoginJwt(c echo.Context) error {
 		req.Email = c.FormValue("email")
 		req.Password = c.FormValue("password")
 	}
-
-	// Check if a token was provided
-	// if tokenStr != "" && tokenStr != "undefined" {
-	// 	token, err := jwt.ParseWithClaims(tokenStr, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-	// 		// Ensure the signing method is correct
-	// 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-	// 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-	// 		}
-	// 		return secret, nil
-	// 	})
-
-	// 	if err != nil || !token.Valid {
-	// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token logging in"})
-	// 	}
-
-	// 	claims, ok := token.Claims.(*types.JWTClaims)
-	// 	if !ok {
-	// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token: Claims could not be parsed"})
-	// 	}
-	claims, err := VerifyToken("", c)
-	if err == nil {
-		if claims.Email == req.Email {
-			err := db.Where("email = ?", req.Email).First(&user).Error
-			if err != nil {
-				return c.JSON(401, map[string]string{"error": "Invalid "})
+	// token, err := GetToken(c)
+	// if err != nil { 
+	// 	// No token provided - No Problem
+	// }
+	// claims, err := GetTokenClaims(token)
+	// if err == nil {
+	// 	if claims.Email == req.Email {
+	// 		err := db.Where("email = ?", req.Email).First(&user).Error
+	// 		if err != nil {
+	// 			return c.JSON(401, map[string]string{"error": "Invalid "})
 	
-			}
-			return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
-		}
-	}
+	// 		}
+	// 		return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
+	// 	}
+	// }
 
 	// Validate credentials
 	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
@@ -85,6 +70,7 @@ func LoginJwt(c echo.Context) error {
 		claims := &types.JWTClaims{
 			Email:       req.Email,
 			AccessLevel: user.AccessLevel,
+			ID: user.ID,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), // Token expires in 1 hour
 			},
@@ -95,7 +81,26 @@ func LoginJwt(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Could not generate token"})
 		}
 		// Return token to client
-		return c.JSON(http.StatusOK, map[string]string{"token": signedToken, "message": "Login successful!", "email": req.Email})
+		// Cookify the token
+		c.SetCookie(&http.Cookie{
+			Name: "token",
+			Value: signedToken,
+			HttpOnly: true,
+			Secure: true,
+			Expires: claims.ExpiresAt.Time,
+			SameSite: http.SameSiteNoneMode,
+		})
+
+		c.SetCookie(&http.Cookie{
+			Name: "id",
+			Value: fmt.Sprint(user.ID),
+			HttpOnly: false,
+			Secure: true,
+			Expires: claims.ExpiresAt.Time,
+			SameSite: http.SameSiteNoneMode,
+		})
+
+		return c.JSON(http.StatusOK, map[string]string{"message": "Login successful!", "email": req.Email})
 	}
 
 	return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid email or password"})
@@ -105,7 +110,7 @@ func Register(c echo.Context) error {
 	type NewUser struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
-		Token    string `json:"token"`
+		Token    string `json:"token"` // Token for the new user
 	}
 	var newUser NewUser
 
@@ -121,7 +126,8 @@ func Register(c echo.Context) error {
 	}
 
 	// Parse Claims from token
-	claims, err := VerifyToken(newUser.Token, c)
+	//TODO: Verify this works despite the
+	claims, err := GetTokenClaims(newUser.Token)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
@@ -149,8 +155,18 @@ func Register(c echo.Context) error {
 }
 
 func Profile(c echo.Context) error {
-	user := c.Get("user").(*jwt.Token)       // Get the JWT token from context
-	claims := user.Claims.(*types.JWTClaims) // Extract claims
+	//TODO WHY DOES THIS WORK HERE
+	// user := c.Get("user").(*jwt.Token)       // Get the JWT token from context
+	// claims := user.Claims.(*types.JWTClaims) // Extract claims
+	token, err := GetToken(c)
+	if err != nil { 
+		return c.JSON(401, map[string]string{"error": "No token provided"})
+	}
+	claims, err := GetTokenClaims(token)
+	if err != nil {
+		log.Printf("Error verifying token: %v", err)
+		return c.JSON(401, map[string]string{"error": "Invalid token"})
+	}
 	if claims.Email == "" {
 		return c.JSON(400, map[string]string{"error": "Invalid token"})
 	}
@@ -162,20 +178,28 @@ func Profile(c echo.Context) error {
 
 // Returns 200 if user is logged in
 func Check(c echo.Context) error {
-	token := c.Request().Header.Get("Authorization")
-	claims, err := VerifyToken(string(token), c)
+	// token := c.Request().Header.Get("Authorization")
+	token, err := GetToken(c)
+	if err != nil { 
+		return c.JSON(401, map[string]string{"error": "No token provided"})
+	}
+	claims, err := GetTokenClaims(token)
 	if err != nil {
 		log.Printf("Error verifying token: %v", err)
-		return c.JSON(DDLErrors.InvalidToken.Code, DDLErrors.InvalidToken.Message)
+		return c.JSON(401, map[string]string{"error": "Error verifying token"})
 
 	}
-	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email})
+	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email, "id": fmt.Sprint(claims.ID)})
 }
 
 /// Returns a token for a new user based on the input email and access level. Admin Level access is required.
 func NewUserToken(c echo.Context) error {
 	// Check if the user is an admin
-	claims, err := VerifyToken("", c)
+	userToken, err := GetToken(c)
+	if err != nil { 
+		return c.JSON(401, map[string]string{"error": "No token provided"})
+	}
+	claims, err := GetTokenClaims(userToken)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
@@ -209,32 +233,16 @@ func NewUserToken(c echo.Context) error {
 
 /// GetTokenFromRequest returns the token from the request header
 func GetTokenFromRequest(c echo.Context) (string, error) {
-	var token string
-
-	// This does not work. Idk why.
-	// token = c.Get("user").(*jwt.Token).Raw 
-	if token == "" {
-		token = c.Request().Header.Get("Authorization")
-	}
-	if token == "" {
-		return "", DDLErrors.NoTokenProvided
-	}
-	return token, nil
+	cookie, err := c.Cookie("token")
+    if err == nil && cookie.Value != "" {
+        return cookie.Value, nil
+    }
+	return "", err
 }
 
-func VerifyToken(tokenStr string, c echo.Context) (*types.JWTClaims, error) {
-	var err error
-
-	// Get the token from the request if it was not provided
-	if tokenStr == "" {
-		tokenStr, err = GetTokenFromRequest(c)
-		if err != nil || tokenStr == "" {
-			return nil, DDLErrors.NoTokenProvided
-		}
-	}
-
+func GetTokenClaims(t string) (*types.JWTClaims, error) { 
 	// Check if a token was provided
-	token, err := jwt.ParseWithClaims(tokenStr, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(t, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the signing method is correct
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -250,4 +258,18 @@ func VerifyToken(tokenStr string, c echo.Context) (*types.JWTClaims, error) {
 		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid token: Claims could not be parsed")
 	}
 	return claims, nil
+}
+
+func GetToken(c echo.Context) (string, error) {
+	var err error
+
+	// Get the token from the request if it was not provided
+	tokenStr, err := GetTokenFromRequest(c)
+	if err != nil || tokenStr == "" {
+		log.Printf("Error getting token: %v", err)
+		return "", DDLErrors.NoTokenProvided
+	}
+	return tokenStr, nil
+	
+	
 }

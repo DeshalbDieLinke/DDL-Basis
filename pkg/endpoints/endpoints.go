@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	echo "github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -19,14 +21,33 @@ func HelloWorld(c echo.Context) error {
 
 //TODO Add support for query parameters and search as well as returning the content from the database
 func GetContent(c echo.Context) error {
-	material, err := utils.GetMaterial()
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "oopsie")
+	queryParams := c.QueryParams()
+	db := c.Get("db").(*gorm.DB)
+
+	if queryParams != nil { 
+		// Search for content
+		return SearchContent(c, queryParams)
 	}
-	return c.JSON(http.StatusOK, material)
+	// Get the content ID
+	content := models.Content{}
+	if err := db.Find(&content).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
+	}
+	return c.JSON(http.StatusOK, content)
 }
 
-func SearchContent(c echo.Context) error {
+func SearchContent(c echo.Context, queryParams url.Values) error {
+	db := c.Get("db").(*gorm.DB)
+	content := []models.Content{}
+	
+	log.Printf("Query Params: %v", queryParams)
+	if queryParams.Get("author") != "" { 
+		author := queryParams.Get("author")
+		if err := db.Where("author_id = ?", author).Find(&content).Error; err != nil { 
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
+		}
+		return c.JSON(http.StatusOK, content)
+	}
 	return c.String(http.StatusInternalServerError, "Not Implemented")
 }
 
@@ -38,6 +59,7 @@ func CreateContent(c echo.Context) error {
 	title := c.FormValue("title")
 	description := c.FormValue("description")
 	topics := c.FormValue("topics")
+
 	official := c.FormValue("official")
 	// Get the file 
 	formFile, err  := c.FormFile("file")
@@ -45,8 +67,10 @@ func CreateContent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "No file provided"})
 	}
 
-	log.Printf("Title: %s, Description: %s, Topics: %s, Official: %s, File: %s", title, description, topics, official, formFile.Filename)
-
+	// Check if the file is too large. 10MB Limit.
+	if formFile.Size > 10000000 { 
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File too large"})
+	}
 	// Validate the input and the user
 	if title == "" || description == "" || topics == "" { 
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Missing required fields"})
@@ -61,7 +85,11 @@ func CreateContent(c echo.Context) error {
 	}
 
 	// Check if the user has the required access level
-	claims, err := VerifyToken("", c)
+	token, err := GetToken(c)
+	if err != nil { 
+		return c.JSON(401, map[string]string{"error": "No token provided"})
+	}
+	claims, err := GetTokenClaims(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
@@ -83,7 +111,9 @@ func CreateContent(c echo.Context) error {
 	fileKey := "material/sharepics/" + fileName
 
 	// Create the content object
-	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename}
+	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
+	uri = strings.Replace(uri, " ", "%20", -1)
+	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri}
 	var errorCreatingContent error; 
 
 	src, err := formFile.Open()
@@ -91,8 +121,15 @@ func CreateContent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error opening file"})
 	}
 	defer src.Close()
+
+	// Remove File Metadata
+	file, err := utils.CleanFile(src)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error removing metadata"})
+	}
+
 	// Upload the file to the bucket server
-	ErrUploading := utils.UploadToSpace(src, fileKey)
+	ErrUploading := utils.UploadToSpace(file, fileKey)
 	if ErrUploading != nil { 
 		log.Printf("Error uploading file: %v", ErrUploading)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error uploading file"})
@@ -102,11 +139,13 @@ func CreateContent(c echo.Context) error {
 
 	if errorCreatingContent != nil { 
 		log.Printf("Error creating content: %v", errorCreatingContent)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error creating content"})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error creating content AHHHHHHHHHH"})
 	}
 
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
 }
 
-
+func Topics (c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string][]string{"topics": utils.GetTopics()})
+}

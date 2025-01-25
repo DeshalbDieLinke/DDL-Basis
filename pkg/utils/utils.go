@@ -1,43 +1,49 @@
 package utils
 
 import (
-	content "ddl-server/pkg/database/models"
+	"bytes"
 	"ddl-server/pkg/types"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/rwcarlsen/goexif/exif"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
+func CleanFile(file io.ReadSeeker) (io.ReadSeeker, error) {
+    // Decode EXIF data
+    _, err := exif.Decode(file)
+    if err != nil {
+        // If there's no EXIF data, return the original file
+        if !exif.IsExifError(err) {
+            return file, nil
+        }
+        return nil, err // Return other errors
+    }
+    // Create a buffer to hold the cleaned file content
+    var buf bytes.Buffer
+    // Reset the file reader to the beginning
+    if seeker, ok := file.(io.Seeker); ok {
+        _, err = seeker.Seek(0, 0)
+        if err != nil {
+            return nil, err
+        }
+    }
+    // Copy the file content to the buffer (without EXIF data)
+    _, err = io.Copy(&buf, file)
+    if err != nil {
+        return nil, err
+    }
 
+	returnFile := bytes.NewReader(buf.Bytes())
 
-
-func GetMaterial() ([]content.Content, error) {
-	contentItems := []content.Content{}
-	var localErr error
-	
-	materialDir, err := GetMaterialPath()
-	if err != nil {
-		// handle the error appropriately
-		return contentItems, err
-	}
-	filepath.WalkDir(materialDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			localErr = err
-		}
-
-		// Apply the function only to files
-		if !d.IsDir() {
-			contentItems = append(contentItems, content.Content{Title: d.Name(), Description: path, ContentType: "image"})
-		}
-		return nil
-	})
-
-	return contentItems, localErr
+    return returnFile, nil
 }
 
 
@@ -80,3 +86,27 @@ func GenerateToken(email string, accessLevel int) (string, error) {
 	return tokenString, nil
 }
 
+func GetTopics() []string {
+	topics := []string{
+		"Klima",
+		"Frieden",
+		"Demokratie",
+		"Antifaschismus",
+		"Antidiskriminierung",
+		"Antikapitalismus",
+		"Feminismus",
+		"Queer",
+		"Dort und Agrar",
+		"Vielfalt",
+		"integration",
+		"Mieten",
+		"Mieten",
+		"Soziale Gerechtigkeit",
+		"Bahn",
+		"Lebensmittel",
+		"Infrastruktur",
+		"Arbeit und Inflation",
+		"Klassenkampf",
+	}
+	return topics
+}
