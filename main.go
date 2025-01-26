@@ -40,7 +40,7 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//TODO FIX THIS IN PRODUCTION!!!!!! UNSAFE!!!!
-		AllowOrigins: []string{"*"},
+		AllowOrigins: []string{"https://deshalbdielinke.de", "https://api.deshalbdielinke.de"},
 		AllowMethods: []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
