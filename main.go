@@ -45,6 +45,7 @@ func main() {
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 		}))
+	log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de", "https://api.deshalbdielinke.de"})
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
 			return !strings.Contains(c.Path(), "/auth");
