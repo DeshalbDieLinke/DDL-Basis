@@ -47,7 +47,7 @@ func main() {
 		}))
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
-			return !strings.Contains(c.Path(), "/auth"); 
+			return !strings.Contains(c.Path(), "/auth");
 		},
 		SigningKey: SECRET_KEY,
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
@@ -85,7 +85,7 @@ func main() {
 	e.GET("/topics", endpoints.Topics)
 	e.GET("/content", endpoints.GetContent)
 	// Register a catch-all route
-	e.Any("/*", func(context echo.Context) error { 
+	e.Any("/*", func(context echo.Context) error {
 		return context.String(404, "Not Found")
 	})
 
@@ -99,13 +99,13 @@ func main() {
 	restricted.POST("/new-user", endpoints.NewUserToken)
 	restricted.GET("/*", func(c echo.Context) error {
 		log.Printf("Authenticated request")
-		return c.JSON(200, map[string]string{"message": "Authenticated request"})	
+		return c.JSON(200, map[string]string{"message": "Authenticated request"})
 	})
-	
+
 	// Check if DB is empty and create a default user
 	var count int64
 	db.Model(&models.User{}).Count(&count)
-	if count == 0 { 
+	if count == 0 {
 		adminEmail := os.Getenv("INIT_EMAIL")
 		if adminEmail == "" {
 			log.Fatal("No admin email provided")
@@ -119,7 +119,7 @@ func main() {
 	// Cache the certificate to prevent rate limiting
 	e.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
 	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
-	
+
 	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
 	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
 

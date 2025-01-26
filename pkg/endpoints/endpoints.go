@@ -24,15 +24,17 @@ func GetContent(c echo.Context) error {
 	queryParams := c.QueryParams()
 	db := c.Get("db").(*gorm.DB)
 
-	if queryParams != nil { 
+	if len(queryParams) > 0 {
 		// Search for content
 		return SearchContent(c, queryParams)
 	}
 	// Get the content ID
-	content := models.Content{}
+	content := []models.Content{}
 	if err := db.Find(&content).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
 	}
+	log.Printf("Content: %v", content)
+
 	return c.JSON(http.StatusOK, content)
 }
 
@@ -46,6 +48,7 @@ func SearchContent(c echo.Context, queryParams url.Values) error {
 		if err := db.Where("author_id = ?", author).Find(&content).Error; err != nil { 
 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
 		}
+		log.Printf("Content: %v", content)
 		return c.JSON(http.StatusOK, content)
 	}
 	return c.String(http.StatusInternalServerError, "Not Implemented")
