@@ -108,7 +108,7 @@ func main() {
 	e.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
 	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
 
-	e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
-	// e.Logger.Fatal(e.Start("127.0.0.1:8080"))
+	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
+	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
 
 }
