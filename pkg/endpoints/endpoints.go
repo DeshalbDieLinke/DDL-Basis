@@ -34,7 +34,7 @@ func GetContent(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
 	}
 	log.Printf("Content: %v", content)
-
+	
 	return c.JSON(http.StatusOK, content)
 }
 
@@ -62,6 +62,7 @@ func CreateContent(c echo.Context) error {
 	title := c.FormValue("title")
 	description := c.FormValue("description")
 	topics := c.FormValue("topics")
+	altText := c.FormValue("altText")
 
 	official := c.FormValue("official")
 	// Get the file 
@@ -75,7 +76,7 @@ func CreateContent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File too large"})
 	}
 	// Validate the input and the user
-	if title == "" || description == "" || topics == "" { 
+	if title == "" { 
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Missing required fields"})
 	}
 	
@@ -116,8 +117,8 @@ func CreateContent(c echo.Context) error {
 	// Create the content object
 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
 	uri = strings.Replace(uri, " ", "%20", -1)
-	log.Printf("URI: %v", uri)
-	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri}
+
+	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri, AltText: altText}
 	var errorCreatingContent error; 
 
 	src, err := formFile.Open()

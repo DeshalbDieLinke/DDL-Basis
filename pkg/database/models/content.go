@@ -9,6 +9,7 @@ type Content struct {
 	Title   string
 	Content *string
 	ContentType string
+	AltText string
 	Uri *string
 	AuthorID uint 
 	Topics string
