@@ -4,6 +4,7 @@ import (
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/utils"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -132,6 +133,9 @@ func CreateContent(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error removing metadata"})
 	}
+
+	file.Seek(0, io.SeekStart) // Reset file pointer to the start
+	log.Printf("File: %v", file)
 
 	// Upload the file to the bucket server
 	ErrUploading := utils.UploadToSpace(file, fileKey)
