@@ -39,7 +39,7 @@ func LoginJwt(c echo.Context) error {
 		req.Password = c.FormValue("password")
 	}
 	// token, err := GetToken(c)
-	// if err != nil { 
+	// if err != nil {
 	// 	// No token provided - No Problem
 	// }
 	// claims, err := GetTokenClaims(token)
@@ -48,7 +48,7 @@ func LoginJwt(c echo.Context) error {
 	// 		err := db.Where("email = ?", req.Email).First(&user).Error
 	// 		if err != nil {
 	// 			return c.JSON(401, map[string]string{"error": "Invalid "})
-	
+
 	// 		}
 	// 		return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
 	// 	}
@@ -70,7 +70,7 @@ func LoginJwt(c echo.Context) error {
 		claims := &types.JWTClaims{
 			Email:       req.Email,
 			AccessLevel: user.AccessLevel,
-			ID: user.ID,
+			ID:          user.ID,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), // Token expires in 1 hour
 			},
@@ -83,20 +83,20 @@ func LoginJwt(c echo.Context) error {
 		// Return token to client
 		// Cookify the token
 		c.SetCookie(&http.Cookie{
-			Name: "token",
-			Value: signedToken,
+			Name:     "token",
+			Value:    signedToken,
 			HttpOnly: true,
-			Secure: true,
-			Expires: claims.ExpiresAt.Time,
+			Secure:   true,
+			Expires:  claims.ExpiresAt.Time,
 			SameSite: http.SameSiteNoneMode,
 		})
 
 		c.SetCookie(&http.Cookie{
-			Name: "id",
-			Value: fmt.Sprint(user.ID),
+			Name:     "id",
+			Value:    fmt.Sprint(user.ID),
 			HttpOnly: false,
-			Secure: true,
-			Expires: claims.ExpiresAt.Time,
+			Secure:   true,
+			Expires:  claims.ExpiresAt.Time,
 			SameSite: http.SameSiteNoneMode,
 		})
 
@@ -132,12 +132,12 @@ func Register(c echo.Context) error {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
 	if claims != nil {
-	if claims.Email != newUser.Email {
-		return c.JSON(401, map[string]string{"error": "Email does not match token"})
+		if claims.Email != newUser.Email {
+			return c.JSON(401, map[string]string{"error": "Email does not match token"})
+		}
+		log.Printf("Access level: %v", claims.AccessLevel)
+		accessLevel = claims.AccessLevel
 	}
-	log.Printf("Access level: %v", claims.AccessLevel)
-	accessLevel = claims.AccessLevel 
-	} 
 
 	db := c.Get("db").(*gorm.DB)
 	var user models.User
@@ -155,11 +155,8 @@ func Register(c echo.Context) error {
 }
 
 func Profile(c echo.Context) error {
-	//TODO WHY DOES THIS WORK HERE
-	// user := c.Get("user").(*jwt.Token)       // Get the JWT token from context
-	// claims := user.Claims.(*types.JWTClaims) // Extract claims
 	token, err := GetToken(c)
-	if err != nil { 
+	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
 	claims, err := GetTokenClaims(token)
@@ -176,11 +173,24 @@ func Profile(c echo.Context) error {
 	})
 }
 
-// Returns 200 if user is logged in
+// Logout Sets the token cookie to none - effectively logs out the user
+func Logout(c echo.Context) error {
+	c.SetCookie(&http.Cookie{
+		Name:     "token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(time.Second),
+		SameSite: http.SameSiteNoneMode,
+	})
+	return c.JSON(200, map[string]string{"message": "Logout successful"})
+}
+
+// Check Returns 200 if user is logged in
 func Check(c echo.Context) error {
 	// token := c.Request().Header.Get("Authorization")
 	token, err := GetToken(c)
-	if err != nil { 
+	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
 	claims, err := GetTokenClaims(token)
@@ -192,11 +202,11 @@ func Check(c echo.Context) error {
 	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email, "id": fmt.Sprint(claims.ID)})
 }
 
-/// Returns a token for a new user based on the input email and access level. Admin Level access is required.
+// / Returns a token for a new user based on the input email and access level. Admin Level access is required.
 func NewUserToken(c echo.Context) error {
 	// Check if the user is an admin
 	userToken, err := GetToken(c)
-	if err != nil { 
+	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
 	claims, err := GetTokenClaims(userToken)
@@ -227,20 +237,18 @@ func NewUserToken(c echo.Context) error {
 	return c.JSON(200, map[string]string{"token": token, "message": "Token generated successfully"})
 }
 
-
-
 // Utility functions
 
-/// GetTokenFromRequest returns the token from the request header
+// / GetTokenFromRequest returns the token from the request header
 func GetTokenFromRequest(c echo.Context) (string, error) {
 	cookie, err := c.Cookie("token")
-    if err == nil && cookie.Value != "" {
-        return cookie.Value, nil
-    }
+	if err == nil && cookie.Value != "" {
+		return cookie.Value, nil
+	}
 	return "", err
 }
 
-func GetTokenClaims(t string) (*types.JWTClaims, error) { 
+func GetTokenClaims(t string) (*types.JWTClaims, error) {
 	// Check if a token was provided
 	token, err := jwt.ParseWithClaims(t, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the signing method is correct
@@ -270,6 +278,5 @@ func GetToken(c echo.Context) (string, error) {
 		return "", DDLErrors.NoTokenProvided
 	}
 	return tokenStr, nil
-	
-	
+
 }

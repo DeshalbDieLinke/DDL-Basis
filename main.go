@@ -16,12 +16,10 @@ import (
 	jwtE "github.com/labstack/echo-jwt/v4"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"golang.org/x/crypto/acme/autocert"
 )
 
-
 func main() {
-	err:= godotenv.Load("config.env")
+	err := godotenv.Load("config.env")
 	if err != nil {
 		log.Print("Error loading .env file: ", err)
 	}
@@ -39,16 +37,15 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		//TODO FIX THIS IN PRODUCTION!!!!!! UNSAFE!!!!
-		AllowOrigins: []string{"https://deshalbdielinke.de/"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.OPTIONS},
+		AllowOrigins:     []string{"https://deshalbdielinke.de/"},
+		AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
-		}))
+	}))
 	log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de"})
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
-			return !strings.Contains(c.Path(), "/auth");
+			return !strings.Contains(c.Path(), "/auth")
 		},
 		SigningKey: SECRET_KEY,
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
@@ -64,7 +61,7 @@ func main() {
 				return SECRET_KEY, nil
 			})
 		},
-	}));
+	}))
 
 	// Register endpoints
 	e.POST("/register", endpoints.Register)
@@ -77,12 +74,11 @@ func main() {
 		return context.String(404, "Not Found")
 	})
 
-
 	// Register Restricted Endpoints
 	restricted := e.Group("/auth")
 	restricted.GET("/profile", endpoints.Profile)
 	restricted.POST("/upload", endpoints.CreateContent)
-	restricted.GET("/users", endpoints.AdminPanel)
+	restricted.GET("/users", endpoints.GetUsers)
 	restricted.GET("/check", endpoints.Check)
 	restricted.POST("/new-user", endpoints.NewUserToken)
 	restricted.GET("/*", func(c echo.Context) error {
@@ -99,16 +95,11 @@ func main() {
 			log.Fatal("No admin email provided")
 		}
 		initToken, _ := utils.GenerateToken(adminEmail, 0)
-		log.Printf("Creating default user for %v: %s",  adminEmail, initToken)
+		log.Printf("Creating default user for %v: %s", adminEmail, initToken)
 	} else {
 		log.Printf("Count: %d", count)
 	}
 
-	// Cache the certificate to prevent rate limiting
-	e.AutoTLSManager.Cache = autocert.DirCache("/root/certs")
-	e.AutoTLSManager.HostPolicy = autocert.HostWhitelist("api.deshalbdielinke.de")
-
-	// e.Logger.Fatal(e.StartTLS(":8080", "/etc/letsencrypt/live/api.deshalbdielinke.de/fullchain.pem", "/etc/letsencrypt/live/api.deshalbdielinke.de/privkey.pem"))
 	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
 
 }

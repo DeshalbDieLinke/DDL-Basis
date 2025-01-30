@@ -9,10 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// Returns JSON data for users in the database
-func AdminPanel(c echo.Context) error {
+// GetUsers Returns JSON data for users in the database
+func GetUsers(c echo.Context) error {
 	token, err := GetToken(c)
-	if err != nil { 
+	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
 	claims, err := GetTokenClaims(token)
