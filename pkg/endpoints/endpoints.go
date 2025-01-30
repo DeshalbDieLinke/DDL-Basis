@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	echo "github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -153,6 +154,7 @@ func CreateContent(c echo.Context) error {
 }
 
 type UpdateUserRequest struct {
+	ID          int     `json:"id"`
 	Email       *string `json:"email"`
 	Password    *string `json:"password"`
 	AccessLevel *int    `json:"accessLevel"`
@@ -172,9 +174,9 @@ func UpdateUser(c echo.Context) error {
 	db := c.Get("db").(*gorm.DB)
 
 	editAuthor := models.User{}
-	err = db.Where("email = ?", claims.Email).First(&editAuthor).Error
+	err = db.Where("id = ?", claims.ID).First(&editAuthor).Error
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching user"})
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Error fetching user"})
 	}
 
 	updateRequest := new(UpdateUserRequest)
@@ -184,14 +186,14 @@ func UpdateUser(c echo.Context) error {
 	}
 	// Person to be updated
 	editObject := models.User{}
-	if err := db.Where("email = ?", updateRequest.Email).First(&editObject).Error; err != nil {
+	if err := db.Where("id = ?", updateRequest.ID).First(&editObject).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching user"})
 	}
 
 	editAllowed := false
 	if editAuthor.AccessLevel == 0 {
 		editAllowed = true
-	} else if editAuthor == editObject && updateRequest.AccessLevel == nil {
+	} else if editAuthor.ID == editObject.ID && updateRequest.AccessLevel == nil {
 		editAllowed = true
 	}
 	if !editAllowed {
@@ -201,10 +203,22 @@ func UpdateUser(c echo.Context) error {
 	// Update user in Database
 	if editAllowed {
 		if updateRequest.Email != nil {
+			// Check for email uniqueness if email is being updated
+			if updateRequest.Email != nil && *updateRequest.Email != editObject.Email {
+				var count int64
+				db.Model(&models.User{}).Where("email = ?", *updateRequest.Email).Count(&count)
+				if count > 0 {
+					return c.JSON(http.StatusConflict, map[string]string{"message": "Email already in use"})
+				}
+			}
 			editObject.Email = *updateRequest.Email
 		}
 		if updateRequest.Password != nil {
-			editObject.Password = *updateRequest.Password
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*updateRequest.Password), bcrypt.DefaultCost)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error hashing password"})
+			}
+			editObject.Password = string(hashedPassword)
 		}
 		if updateRequest.AccessLevel != nil {
 			editObject.AccessLevel = *updateRequest.AccessLevel
@@ -212,7 +226,10 @@ func UpdateUser(c echo.Context) error {
 		if updateRequest.Username != nil {
 			editObject.Username = updateRequest.Username
 		}
-		db.Save(&editObject)
+		err := db.Save(&editObject)
+		if err.Error != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
+		}
 		return c.JSON(http.StatusOK, map[string]string{"message": "User updated"})
 	}
 	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})

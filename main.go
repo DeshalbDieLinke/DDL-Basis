@@ -79,6 +79,7 @@ func main() {
 	restricted.GET("/profile", endpoints.Profile)
 	restricted.POST("/upload", endpoints.CreateContent)
 	restricted.GET("/users", endpoints.GetUsers)
+	restricted.PATCH("/users", endpoints.UpdateUser)
 	restricted.GET("/check", endpoints.Check)
 	restricted.POST("/new-user", endpoints.NewUserToken)
 	restricted.GET("/*", func(c echo.Context) error {
