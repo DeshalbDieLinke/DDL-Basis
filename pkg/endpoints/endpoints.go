@@ -264,7 +264,7 @@ func DeleteContentItem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
 	}
 
-	permitted := utils.VerifyPermissions(2, c, utils.Target{
+	permitted := utils.VerifyPermissions(2, c, &utils.Target{
 		ContentItem: &content,
 	})
 	if !permitted {
@@ -293,7 +293,7 @@ func UpdateContent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
 	}
 
-	permitted := utils.VerifyPermissions(2, c, utils.Target{
+	permitted := utils.VerifyPermissions(2, c, &utils.Target{
 		ContentItem: &contentItem,
 	})
 	if !permitted {

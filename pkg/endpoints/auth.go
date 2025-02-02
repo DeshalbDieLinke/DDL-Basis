@@ -189,16 +189,9 @@ func Check(c echo.Context) error {
 // / Returns a token for a new user based on the input email and access level. Admin Level access is required.
 func NewUserToken(c echo.Context) error {
 	// Check if the user is an admin
-	userToken, err := utils.GetToken(c)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "No token provided"})
-	}
-	claims, err := utils.GetTokenClaims(userToken)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "Invalid token"})
-	}
-	if claims.AccessLevel != 0 {
-		return c.JSON(401, map[string]string{"error": "Insufficient access level. 0 Required " + fmt.Sprint(claims.AccessLevel) + " Provided"})
+	permitted := utils.VerifyPermissions(0, c, nil)
+	if !permitted { 
+		return c.JSON(401, map[string]string{"error": "Insufficient access level"})
 	}
 
 	type NewUser struct {

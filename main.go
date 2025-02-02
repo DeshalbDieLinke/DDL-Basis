@@ -40,7 +40,7 @@ func main() {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		
 		// AllowOrigins:     []string{"https://deshalbdielinke.de/"},
-		AllowOrigins:    []string{"http://127.0.0.1:4321"},
+		AllowOrigins:     []string{"https://deshalbdielinke.de"},
 		AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,

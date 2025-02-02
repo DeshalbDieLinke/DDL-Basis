@@ -25,7 +25,8 @@ type Target struct {
 // - required: The level of permissions required.
 // - forSelf: A boolean indicating if the permissions are being verified for the user themselves. THis will allow
 // Returns: A boolean indicating if the user has the required permissions.
-func VerifyPermissions(required int, c echo.Context, target Target) bool {
+func VerifyPermissions(required int, c echo.Context, target *Target) bool {
+
 	token, err := GetToken(c)
 	if err != nil {
 		return false
@@ -51,7 +52,10 @@ func VerifyPermissions(required int, c echo.Context, target Target) bool {
 
 	if user.AccessLevel == 0 { 
 		return true
-	} 
+	} else if target != nil {
+		// IF the target is not set Admin permissions are required
+		return false
+	}
 	if target.ContentItem != nil && target.ContentItem.AuthorID == user.ID {
 		return true
 	}
