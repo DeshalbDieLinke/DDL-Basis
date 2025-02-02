@@ -52,6 +52,8 @@ func LoginJwt(c echo.Context) error {
 		if err != nil || user.Password != string(hashedPassword) { 
 			log.Printf("Password mismatch Fallback failed, error: %v", err)
 			log.Printf(string(hashedPassword), " |||| ", user.Password)
+			log.Printf("Creating user: Password: %v", string(hashedPassword), " from ", req.Password)
+
 			return c.JSON(401, map[string]string{"error": "Invalid password"}) //TODO Add secure error message and checking
 		}
 	}
@@ -138,6 +140,8 @@ func Register(c echo.Context) error {
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
+	log.Printf("Creating user: Password: %v", string(hashedPassword), " from ", newUser.Password)
+
 	if err != nil {
 		return c.JSON(500, map[string]string{"error": "Failed to hash password"})
 	}
