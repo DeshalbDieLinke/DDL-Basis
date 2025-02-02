@@ -11,6 +11,7 @@ type Content struct {
 	ContentType string
 	AltText string
 	Uri *string
+	FileKey string
 	AuthorID uint 
 	Topics string
 	Official bool

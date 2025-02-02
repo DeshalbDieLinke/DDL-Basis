@@ -129,7 +129,8 @@ func ListFilesFromSpace() ([]string, error) {
 
 	var fileList []string
 	for _, item := range response.Contents {
-		fileList = append(fileList, *item.Key)
+		url := *item.Key
+		fileList = append(fileList, url)
 	}
 
 	return fileList, nil

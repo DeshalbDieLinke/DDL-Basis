@@ -7,33 +7,33 @@ import (
 	"gorm.io/gorm"
 )
 
-func ListFileKeysFromDB(db *gorm.DB) ([]string, error) {
+func ListFileKeysfromDB(db *gorm.DB) ([]string, error) {
 	// Get the file keys from the database
 	var uploads []models.Content
-	var fileKeys []string
+	var FileKeys []string
 
-	if err := db.Model(&models.Content{}).Select("FileName").Find(&uploads).Error; err != nil {
+	if err := db.Model(&models.Content{}).Select("FileKey").Find(&uploads).Error; err != nil {
 		return nil, err
 	}
 	for _, upload := range uploads {
-		fileKeys = append(fileKeys, upload.FileName)
+		FileKeys = append(FileKeys, upload.FileKey)
 	}
 
-	return fileKeys, nil
+	return FileKeys, nil
 }
 
-func DeleteFromDB(db *gorm.DB, key string) error {
+func DeleteFromDB(db *gorm.DB, Url string) error {
 	// Delete the file from the database
-	if err := db.Where("FileName = ?", key).Delete(&models.Content{}).Error; err != nil {
+	if err := db.Where("Url = ?",Url).Delete(&models.Content{}).Error; err != nil {
 		return err
 	}
-	log.Printf("Deleted %v from the database", key)
+	log.Printf("Deleted %v from the database", Url)
 	return nil
 }
 
 func MarkBrokenDB(db *gorm.DB, key string) error {
 	// Mark the file as broken in the database
-	if err := db.Model(&models.Content{}).Where("FileName = ?", key).Update("Broken", true).Error; err != nil {
+	if err := db.Model(&models.Content{}).Where("FileKey = ?", key).Update("Broken", true).Error; err != nil {
 		return err
 	}
 	log.Printf("Marked %v as broken in the database", key)

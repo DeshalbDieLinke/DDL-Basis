@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,8 +114,4 @@ func GetTopics() []string {
 
 
 
-func IsValidURL(uri string) bool {
-	parsedURL, err := url.ParseRequestURI(uri)
-	return err == nil && parsedURL.Scheme != "" && parsedURL.Host != ""
-}
 

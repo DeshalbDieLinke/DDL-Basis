@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,9 +61,7 @@ func SearchContent(c echo.Context, queryParams url.Values) error {
 }
 
 func CreateContent(c echo.Context) error {
-	// Get the database connection
-	db := c.Get("db").(*gorm.DB)
-
+	
 	// Get the FormData
 	title := c.FormValue("title")
 	description := c.FormValue("description")
@@ -104,6 +101,10 @@ func CreateContent(c echo.Context) error {
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
+
+	// Get the database connection
+	db := c.Get("db").(*gorm.DB)
+
 	user := models.User{}
 	if err := db.Where("email = ?", claims.Email).First(&user).Error; err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
@@ -118,17 +119,13 @@ func CreateContent(c echo.Context) error {
 	}
 
 	// USER IS AUTHORIZED TO UPLOAD CONTENT
-	fileName := formFile.Filename
-	fileKey := strings.Replace("material/sharepics/" + fileName, " ", "%20", -1)
+	fileKey := "material/sharepics/" + strings.Replace(formFile.Filename, " ", "_", -1)
 
-	// Create the content object
-	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
+	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/material/sharepics/" + url.PathEscape(strings.Replace(formFile.Filename, " ", "_", -1))
+		
 	
-	if (!utils.IsValidURL(uri)) { 
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid File Name"})
-	}
 
-	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri, AltText: altText}
+	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, FileKey: fileKey, Uri: &uri, AltText: altText}
 	var errorCreatingContent error
 
 	src, err := formFile.Open()
@@ -147,7 +144,10 @@ func CreateContent(c echo.Context) error {
 	log.Printf("File: %v", file)
 
 	// Upload the file to the bucket server
-	ErrUploading := utils.UploadToSpace(file, fileKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error unescaping file key"})
+	}
+	ErrUploading := utils.UploadToSpace(file, content.FileKey)
 	if ErrUploading != nil {
 		log.Printf("Error uploading file: %v", ErrUploading)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error uploading file"})
@@ -264,13 +264,18 @@ func DeleteContentItem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
 	}
 
-	//TODO Check if the user has the required access level
+	permitted := utils.VerifyPermissions(2, c, utils.Target{
+		ContentItem: &content,
+	})
+	if !permitted {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Insufficient permissions"})
+	}
 	// Delete the content from the database
 	if err := db.Delete(&content).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error deleting content"})
 	}
 	// Delete the file from the bucket
-	if err := utils.DeleteFromSpace(content.FileName); err != nil {
+	if err := utils.DeleteFromSpace(content.FileKey); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error deleting file"})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Content deleted"})
@@ -294,88 +299,101 @@ func UpdateContent(c echo.Context) error {
 	if !permitted {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Insufficient permissions"})
 	}
-	var RequestData struct { 
-		id int `json:"id"`
-		Title string `json:"title"`
-		Description string `json:"description"`
-		Topics string `json:"topics"`
-		AltText string `json:"altText"`
-		Official bool `json:"official"`
-		formFile *multipart.File `json:"file"`
-		ContentType string `json:"type"`
-		url string `json:"url"`
-	}
-
-	err := c.Bind(&RequestData)
-	if err != nil {
-		log.Printf("Error binding data: %v", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request - Could not bind data"})
-	}
-	// // Get the FormData
-	// title := c.FormValue("title")
-	// description := c.FormValue("description")
-	// topics := c.FormValue("topics")
-	// altText := c.FormValue("altText")
-	// official := c.FormValue("official")
-	// // Get the file
-
-	// if RequestData.formFile != nil {
-	// 	// Assume the file need not be updated
-	// } else {
-	// 	if RequestData.formFile.Size > 10000000 {
-
-	// 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File too large"})
-	// 	}
+	// var RequestData struct { 
+	// 	id int `json:"id"`
+	// 	Title string `json:"title"`
+	// 	Description string `json:"description"`
+	// 	Topics string `json:"topics"`
+	// 	AltText string `json:"altText"`
+	// 	Official bool `json:"official"`
+	// 	formFile *multipart.File `json:"file"`
+	// 	ContentType string `json:"type"`
+	// 	url string `json:"url"`
 	// }
-	// Check if the file is too large. 10MB Limit.
+
+
+	err := c.Request().ParseMultipartForm(10 << 20) // 10 MB limit
+	if err != nil {
+		// Is not mutlipart form. That's okay
+	}
+
+	// err := c.Bind(&RequestData)
+	title := c.FormValue("title")
+	description := c.FormValue("description")
+	topics := c.FormValue("topics")
+	altText := c.FormValue("altText")
+	official := c.FormValue("official")
+
+	// Handle file upload
+	formFile, err := c.FormFile("file")
+	if err != nil {
+		log.Printf("File error: %v", err)
+		return err
+	}
+
+
+
+	if err != nil { 
+		log.Printf("Error Getting file: %v", err)
+		// This is not an error, the file is optional
+	}
+	// contentType := c.FormValue("type")
+	// url := c.FormValue("url")
 
 	
 
 	// Validate the input and the user
-	if RequestData.Title == "" {
+	if title == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Missing required fields"})
 	}
 
 	// Update the content object
-	contentItem.Title = RequestData.Title
-	contentItem.Description = RequestData.Description
-	contentItem.Topics = RequestData.Topics
-	contentItem.Official = RequestData.Official 
-	contentItem.AltText = RequestData.AltText
+	contentItem.Title = title
+	contentItem.Description = description
+	contentItem.Topics = topics
+	contentItem.Official = official == "on"
+	contentItem.AltText = altText
 
-	// if formFile != nil {
-	// 	// Remove File Metadata
-	// 	src, err := formFile.Open()
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error opening file"})
-	// 	}
-	// 	defer src.Close()
+	if formFile != nil {
+		// Update the URI
+		fileKey := "material/sharepics/" + strings.Replace(formFile.Filename, " ", "_", -1)
 
-	// 	file, err := utils.CleanFile(src)
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error removing metadata"})
-	// 	}
+		uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/material/sharepics/" + url.PathEscape(strings.Replace(formFile.Filename, " ", "_", -1))
+		
+		contentItem.FileKey = fileKey
 
-	// 	file.Seek(0, io.SeekStart) // Reset file pointer to the start
-	// 	log.Printf("File: %v", file)
+		// Remove File Metadata
+		src, err := formFile.Open()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error opening file"})
+		}
+		defer src.Close()
 
-	// 	// Upload the file to the bucket server
-	// 	fileKey := strings.Replace("material/sharepics/" + formFile.Filename, " ", "%20", -1)
-	// 	ErrUploading := utils.UploadToSpace(file, fileKey)
-	// 	if ErrUploading != nil {
-	// 		log.Printf("Error uploading file: %v", ErrUploading)
-	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error uploading file"})
-	// 	}
+		file, err := utils.CleanFile(src)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error removing metadata"})
+		}
 
-	// 	// Update the URI
-	// 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
-	// 	uri = url.PathEscape(uri)
-	// 	if !utils.IsValidURL(uri) {
-	// 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid File Name"})
-	// 	}
-	// 	contentItem.Uri = &uri
-	// 	contentItem.FileName = formFile.Filename
-	// }
+		file.Seek(0, io.SeekStart) // Reset file pointer to the start
+		log.Printf("File: %v", file)
+		// Delete the old file from the bucket
+		if err := utils.DeleteFromSpace(contentItem.FileKey); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error deleting file"})
+		}
+
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error unescaping file key"})
+		}
+		ErrUploading := utils.UploadToSpace(file, contentItem.FileKey)
+		if ErrUploading != nil {
+			log.Printf("Error uploading file: %v", ErrUploading)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error uploading file"})
+		}
+
+		
+		contentItem.Uri = &uri
+		contentItem.FileName = formFile.Filename
+	}
 
 	if err := db.Save(&contentItem).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating content"})

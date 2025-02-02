@@ -16,14 +16,14 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 		return false, err
 	}
 
-	dbFileKeys, err := ListFileKeysFromDB(db)
+	dbFileURLs, err := ListFileKeysfromDB(db)
 	if err != nil {
 		return false, err
 	}
 
 	// Log the keys for debugging
 	log.Printf("Space Keys: %v", spaceFileKeys)
-	log.Printf("DB Keys: %v", dbFileKeys)
+	log.Printf("DB Keys: %v", dbFileURLs)
 
 	// Create sets for fast lookup
 	spaceFileSet := make(map[string]struct{})
@@ -31,7 +31,7 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 	for _, key := range spaceFileKeys {
 		spaceFileSet[key] = struct{}{}
 	}
-	for _, key := range dbFileKeys {
+	for _, key := range dbFileURLs {
 		dbFileSet[key] = struct{}{}
 	}
 
@@ -41,7 +41,15 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 
 	// 1. Check files in Spaces but not in DB, delete from Space
 	for _, key := range spaceFileKeys {
+		log.Printf("Checking space Key: %s", key)
+
+		if key == "" {
+			log.Println("Skipping empty key")
+			continue
+		}
+		
 		if _, exists := dbFileSet[key]; !exists {
+
 			DeleteFromSpace(key)
 			deleteFromSpace = append(deleteFromSpace, key)
 			isEqual = false
@@ -49,17 +57,26 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 	}
 
 	// 2. Check files in DB but not in Spaces, delete from DB
-	for _, key := range dbFileKeys {
+	for _, key := range dbFileURLs {
+		log.Printf("Checking DB Key: %s", key)
+
+		if key == "" {
+			log.Println("Skipping empty key")
+			continue
+		}
 		if _, exists := spaceFileSet[key]; !exists {
+
+
 			MarkBrokenDB(db, key)
 			deleteFromDB = append(deleteFromDB, key)
 			isEqual = false
 		} else {
 			// Mark the file as not broken
-			if err := db.Model(&models.Content{}).Where("FileName = ?", key).Update("Broken", false).Error; err != nil {
-				return false, err
+			if err := db.Model(&models.Content{}).Where("FileKey = ?", key).Update("Broken", false).Error; err != nil {
+				log.Printf("Error marking %v as not broken: %v", key, err)
 			}
-	}
+		
+		}
 	}
 	// Log which files were deleted
 	if len(deleteFromSpace) > 0 {
@@ -77,7 +94,7 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 			return false, err
 		}
 
-		dbFileKeys, err = ListFileKeysFromDB(db)
+		dbFileURLs, err = ListFileKeysfromDB(db)
 		if err != nil {
 			return false, err
 		} 
@@ -88,7 +105,7 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 		for _, key := range spaceFileKeys {
 			spaceFileSet[key] = struct{}{}
 		}
-		for _, key := range dbFileKeys {
+		for _, key := range dbFileURLs {
 			dbFileSet[key] = struct{}{}
 		}
 
@@ -100,14 +117,15 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 			}
 		}
 
-		for _, key := range dbFileKeys {
+		for _, key := range dbFileURLs {
 			if _, exists := spaceFileSet[key]; !exists {
 				MarkBrokenDB(db, key)
+				log.Printf("Marked %v as broken in the database. It is: %s", key, spaceFileSet[key])
 				isEqual = false
 				break
 			} else {
 				// Mark the file as not broken
-				if err := db.Model(&models.Content{}).Where("FileName = ?", key).Update("Broken", false).Error; err != nil {
+				if err := db.Model(&models.Content{}).Where("FileKey = ?", key).Update("Broken", false).Error; err != nil {
 					return false, err
 				}
 			}
@@ -121,7 +139,6 @@ func SyncFileContent(db *gorm.DB) (bool, error) {
 	} else {
 		log.Println("There are still mismatches between DB and Spaces.")
 	}
-
 	return isEqual, nil
 
 }
