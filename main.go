@@ -38,12 +38,13 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"https://deshalbdielinke.de/"},
+		// NO TRAILING / ALLOWED
+		AllowOrigins:     []string{"https://deshalbdielinke.de"},
 		AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 	}))
-	log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de/"})
+	log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de"})
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
 			return !strings.Contains(c.Path(), "/auth")
