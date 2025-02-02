@@ -38,9 +38,7 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		
 		// AllowOrigins:     []string{"https://deshalbdielinke.de/"},
-		AllowOrigins:     []string{"https://deshalbdielinke.de"},
 		AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
