@@ -192,26 +192,42 @@ func UpdateUser(c echo.Context) error {
 	updateRequest := new(UpdateUserRequest)
 	err = c.Bind(&updateRequest)
 	if err != nil {
+		log.Printf("Error binding request: %v", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 	}
+
 	// Person to be updated
 	editObject := models.User{}
 	if err := db.Where("id = ?", updateRequest.ID).First(&editObject).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching user"})
 	}
 
+	editingSelf := editAuthor.ID == editObject.ID
 	editAllowed := false
-	if editAuthor.AccessLevel == 0 {
+	editingAccessLevel := false
+	if updateRequest.AccessLevel != nil {
+		editingAccessLevel = *updateRequest.AccessLevel != editObject.AccessLevel 
+	}
+
+	denialReason := "Edit request denied"
+	// Check if the user is editing themselves
+	
+	if editingSelf { 
+		if editingAccessLevel { 
+			denialReason = "Edit request denied: Cannot change own access level"
+			editAllowed = false
+		} else {
+			editAllowed = true
+		}
+	} else if editAuthor.AccessLevel == 0 {
 		editAllowed = true
-	}else if editAuthor.ID == editObject.ID && (*updateRequest.AccessLevel == editObject.AccessLevel) && (editAuthor.AccessLevel == *updateRequest.AccessLevel)  {
-		// Prevent editing own access level
-		editAllowed = true
-	} 
+	} else {
+		denialReason = "Edit request denied: Insufficient permissions"
+	}
+
 
 	if !editAllowed {
-		log.Printf("Edit Author: %v", editAuthor)
-		log.Printf("Edit Object: %v", editObject)
-		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Edit request denied"})
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Edit request denied: " + denialReason}) 
 	}
 
 	// Update user in Database

@@ -149,12 +149,24 @@ func Register(c echo.Context) error {
 
 func Profile(c echo.Context) error {
 	userId := c.QueryParam("id")
-	if userId == "" { 
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request: No user ID provided"})
-	}
+
 	// Get the user from the DB
 	db := c.Get("db").(*gorm.DB)
 	user := models.User{}
+	
+	if userId == "" { 
+		// Gets the current user owns profile 
+		token, err := utils.GetToken(c)
+		if err != nil {
+			return c.Redirect(http.StatusTemporaryRedirect, "/")
+		}
+		claims, err := utils.GetTokenClaims(token)
+		if err != nil {
+			return c.Redirect(http.StatusTemporaryRedirect, "/")
+		}
+
+		userId = fmt.Sprint(claims.ID)
+	}
 
 	// Check if the user exists in the db
 	if err := db.Where("id = ?", userId).First(&user).Error; err != nil {
@@ -194,12 +206,18 @@ func Check(c echo.Context) error {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
 	claims, err := utils.GetTokenClaims(token)
+	user := models.User{}
+	db := c.Get("db").(*gorm.DB)
+	if err := db.Where("id = ?", claims.ID).First(&user).Error; err != nil {
+		return c.JSON(401, map[string]string{"error": "User not found"})
+	}
 	if err != nil {
 		log.Printf("Error verifying token: %v", err)
 		return c.JSON(401, map[string]string{"error": "Error verifying token"})
 
 	}
-	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(claims.AccessLevel), "email": claims.Email, "id": fmt.Sprint(claims.ID)})
+	return c.JSON(200, map[string]string{"message": "Token valid until: " + claims.ExpiresAt.Time.GoString(), "accessLevel": fmt.Sprint(user.AccessLevel), "email": user.Email, "id": fmt.Sprint(user.ID), 
+	"username": *user.Username}) 
 }
 
 // / Returns a token for a new user based on the input email and access level. Admin Level access is required.
