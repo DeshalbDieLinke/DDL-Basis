@@ -46,8 +46,14 @@ func LoginJwt(c echo.Context) error {
 		return c.JSON(401, map[string]string{"error": "Invalid email or password"})
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		log.Printf("Password mismatch %v", user.Password+"| "+req.Password)
-		return c.JSON(401, map[string]string{"error": "Invalid password"}) //TODO Add secure error message and checking
+		log.Printf("Password mismatch") 
+		// Attemping fallback manual comparison
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil || user.Password != string(hashedPassword) { 
+			log.Printf("Password mismatch Fallback failed, error: %v", err)
+			log.Printf(string(hashedPassword), " |||| ", user.Password)
+			return c.JSON(401, map[string]string{"error": "Invalid password"}) //TODO Add secure error message and checking
+		}
 	}
 	if true {
 		// Generate JWT token
@@ -56,7 +62,7 @@ func LoginJwt(c echo.Context) error {
 			AccessLevel: user.AccessLevel,
 			ID:          user.ID,
 			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)), // Token expires in 1 hour
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 36)), // Token expires in 1 hour
 			},
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -167,6 +173,14 @@ func Logout(c echo.Context) error {
 		Expires:  time.Now().Add(time.Second),
 		SameSite: http.SameSiteNoneMode,
 	})
+	c.SetCookie(&http.Cookie{
+        Name:     "id",
+        Value:    "",
+        HttpOnly: false,
+        Secure:   true,
+        Expires:  time.Now().Add(time.Second),
+        SameSite: http.SameSiteNoneMode,
+    })
 	return c.JSON(200, map[string]string{"message": "Logout successful"})
 }
 
