@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
@@ -37,12 +38,14 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"https://deshalbdielinke.de/"},
+		
+		// AllowOrigins:     []string{"https://deshalbdielinke.de/"},
+		AllowOrigins:    []string{"http://127.0.0.1:4321"},
 		AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowCredentials: true,
 	}))
-	log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de"})
+	// log.Printf("Allowed origins: %v", []string{"https://deshalbdielinke.de"})
 	e.Use(jwtE.WithConfig(jwtE.Config{
 		Skipper: func(c echo.Context) bool {
 			return !strings.Contains(c.Path(), "/auth")
@@ -69,6 +72,9 @@ func main() {
 	e.GET("/", endpoints.HelloWorld)
 	e.GET("/topics", endpoints.Topics)
 	e.GET("/content", endpoints.GetContent)
+	e.GET("/profile", endpoints.Profile)
+	e.GET("/logout", endpoints.Logout)
+	e.POST("/content/delete", endpoints.DeleteContentItem)
 	// Register a catch-all route
 	e.Any("/*", func(context echo.Context) error {
 		return context.String(404, "Not Found")
@@ -79,6 +85,7 @@ func main() {
 	restricted.GET("/profile", endpoints.Profile)
 	restricted.POST("/upload", endpoints.CreateContent)
 	restricted.GET("/users", endpoints.GetUsers)
+	restricted.POST("/update-content", endpoints.UpdateContent)
 	restricted.POST("/update-user", endpoints.UpdateUser)
 	restricted.GET("/check", endpoints.Check)
 	restricted.POST("/new-user", endpoints.NewUserToken)
@@ -101,6 +108,11 @@ func main() {
 		log.Printf("Count: %d", count)
 	}
 
+	delta1 := time.Now()
+	utils.SyncFileContent(db)
+	delta2 := time.Now()
+	log.Printf("Syncing content took: %v", delta2.Sub(delta1))
+	// Start the server
 	e.Logger.Fatal(e.Start("127.0.0.1:8080"))
 
 }

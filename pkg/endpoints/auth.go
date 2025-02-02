@@ -5,11 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/types"
-	DDLErrors "ddl-server/pkg/types/errors"
 	"ddl-server/pkg/utils"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -38,22 +38,6 @@ func LoginJwt(c echo.Context) error {
 		req.Email = c.FormValue("email")
 		req.Password = c.FormValue("password")
 	}
-	// token, err := GetToken(c)
-	// if err != nil {
-	// 	// No token provided - No Problem
-	// }
-	// claims, err := GetTokenClaims(token)
-	// if err == nil {
-	// 	if claims.Email == req.Email {
-	// 		err := db.Where("email = ?", req.Email).First(&user).Error
-	// 		if err != nil {
-	// 			return c.JSON(401, map[string]string{"error": "Invalid "})
-
-	// 		}
-	// 		return c.JSON(http.StatusOK, map[string]string{"message": "Token valid for : " + claims.Email})
-	// 	}
-	// }
-
 	// Validate credentials
 	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -118,6 +102,7 @@ func Register(c echo.Context) error {
 	accessLevel := 3
 
 	err := c.Bind(&newUser)
+	newUser.Email = strings.Trim(strings.ToLower(newUser.Email), " ")
 	if err != nil {
 		return c.JSON(400, map[string]string{"error": "Invalid request"})
 	}
@@ -127,7 +112,7 @@ func Register(c echo.Context) error {
 
 	// Parse Claims from token
 	//TODO: Verify this works despite the
-	claims, err := GetTokenClaims(newUser.Token)
+	claims, err := utils.GetTokenClaims(newUser.Token)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
@@ -155,22 +140,21 @@ func Register(c echo.Context) error {
 }
 
 func Profile(c echo.Context) error {
-	token, err := GetToken(c)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "No token provided"})
+	userId := c.QueryParam("id")
+	if userId == "" { 
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request: No user ID provided"})
 	}
-	claims, err := GetTokenClaims(token)
-	if err != nil {
-		log.Printf("Error verifying token: %v", err)
-		return c.JSON(401, map[string]string{"error": "Invalid token"})
-	}
-	if claims.Email == "" {
-		return c.JSON(400, map[string]string{"error": "Invalid token"})
-	}
-	return c.JSON(200, map[string]interface{}{
-		"email":   claims.Email,
-		"message": "Welcome to your profile!",
-	})
+	// Get the user from the DB
+	db := c.Get("db").(*gorm.DB)
+	user := models.User{}
+
+	// Check if the user exists in the db
+	if err := db.Where("id = ?", userId).First(&user).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"message": "Error fetching user"})
+	} 
+
+	// TODO share proper user object in session form
+	return c.JSON(http.StatusOK, map[string]interface{}{"username": user.Username, "accessLevel": user.AccessLevel})
 }
 
 // Logout Sets the token cookie to none - effectively logs out the user
@@ -189,11 +173,11 @@ func Logout(c echo.Context) error {
 // Check Returns 200 if user is logged in
 func Check(c echo.Context) error {
 	// token := c.Request().Header.Get("Authorization")
-	token, err := GetToken(c)
+	token, err :=utils.GetToken(c)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
-	claims, err := GetTokenClaims(token)
+	claims, err := utils.GetTokenClaims(token)
 	if err != nil {
 		log.Printf("Error verifying token: %v", err)
 		return c.JSON(401, map[string]string{"error": "Error verifying token"})
@@ -205,11 +189,11 @@ func Check(c echo.Context) error {
 // / Returns a token for a new user based on the input email and access level. Admin Level access is required.
 func NewUserToken(c echo.Context) error {
 	// Check if the user is an admin
-	userToken, err := GetToken(c)
+	userToken, err := utils.GetToken(c)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
-	claims, err := GetTokenClaims(userToken)
+	claims, err := utils.GetTokenClaims(userToken)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "Invalid token"})
 	}
@@ -238,45 +222,3 @@ func NewUserToken(c echo.Context) error {
 }
 
 // Utility functions
-
-// / GetTokenFromRequest returns the token from the request header
-func GetTokenFromRequest(c echo.Context) (string, error) {
-	cookie, err := c.Cookie("token")
-	if err == nil && cookie.Value != "" {
-		return cookie.Value, nil
-	}
-	return "", err
-}
-
-func GetTokenClaims(t string) (*types.JWTClaims, error) {
-	// Check if a token was provided
-	token, err := jwt.ParseWithClaims(t, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the signing method is correct
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("JWT_SECRET")), nil
-	})
-	if err != nil || !token.Valid {
-		log.Printf("Error verifying token: %v", err)
-		return nil, DDLErrors.InvalidToken
-	}
-	claims, ok := token.Claims.(*types.JWTClaims)
-	if !ok {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid token: Claims could not be parsed")
-	}
-	return claims, nil
-}
-
-func GetToken(c echo.Context) (string, error) {
-	var err error
-
-	// Get the token from the request if it was not provided
-	tokenStr, err := GetTokenFromRequest(c)
-	if err != nil || tokenStr == "" {
-		log.Printf("Error getting token: %v", err)
-		return "", DDLErrors.NoTokenProvided
-	}
-	return tokenStr, nil
-
-}

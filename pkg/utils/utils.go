@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
 
 func CleanFile(file io.ReadSeeker) (io.ReadSeeker, error) {
     // Decode EXIF data
@@ -110,3 +112,11 @@ func GetTopics() []string {
 	}
 	return topics
 }
+
+
+
+func IsValidURL(uri string) bool {
+	parsedURL, err := url.ParseRequestURI(uri)
+	return err == nil && parsedURL.Scheme != "" && parsedURL.Host != ""
+}
+

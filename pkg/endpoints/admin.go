@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"ddl-server/pkg/database/models"
+	"ddl-server/pkg/utils"
 	"fmt"
 	"net/http"
 
@@ -11,11 +12,11 @@ import (
 
 // GetUsers Returns JSON data for users in the database
 func GetUsers(c echo.Context) error {
-	token, err := GetToken(c)
+	token, err := utils.GetToken(c)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
-	claims, err := GetTokenClaims(token)
+	claims, err := utils.GetTokenClaims(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}

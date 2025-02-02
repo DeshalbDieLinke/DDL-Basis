@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -50,6 +51,12 @@ func SearchContent(c echo.Context, queryParams url.Values) error {
 		}
 		log.Printf("Content: %v", content)
 		return c.JSON(http.StatusOK, content)
+	} else if queryParams.Get("id") != "" { 
+		id := queryParams.Get("id")
+		if err := db.Where("id = ?", id).Find(&content).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching content"})
+		}
+		return c.JSON(http.StatusOK, content)
 	}
 	return c.String(http.StatusInternalServerError, "Not Implemented")
 }
@@ -89,11 +96,11 @@ func CreateContent(c echo.Context) error {
 	}
 
 	// Check if the user has the required access level
-	token, err := GetToken(c)
+	token, err := utils.GetToken(c)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
-	claims, err := GetTokenClaims(token)
+	claims, err := utils.GetTokenClaims(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
@@ -112,11 +119,14 @@ func CreateContent(c echo.Context) error {
 
 	// USER IS AUTHORIZED TO UPLOAD CONTENT
 	fileName := formFile.Filename
-	fileKey := "material/sharepics/" + fileName
+	fileKey := strings.Replace("material/sharepics/" + fileName, " ", "%20", -1)
 
 	// Create the content object
 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
-	uri = strings.Replace(uri, " ", "%20", -1)
+	
+	if (!utils.IsValidURL(uri)) { 
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid File Name"})
+	}
 
 	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, Uri: &uri, AltText: altText}
 	var errorCreatingContent error
@@ -163,11 +173,11 @@ type UpdateUserRequest struct {
 
 func UpdateUser(c echo.Context) error {
 	// User who issued the request:
-	token, err := GetToken(c)
+	token, err := utils.GetToken(c)
 	if err != nil {
 		return c.JSON(401, map[string]string{"error": "No token provided"})
 	}
-	claims, err := GetTokenClaims(token)
+	claims, err := utils.GetTokenClaims(token)
 	if err != nil {
 		return c.String(http.StatusUnauthorized, "Invalid token")
 	}
@@ -193,10 +203,14 @@ func UpdateUser(c echo.Context) error {
 	editAllowed := false
 	if editAuthor.AccessLevel == 0 {
 		editAllowed = true
-	} else if editAuthor.ID == editObject.ID && updateRequest.AccessLevel == nil {
+	}else if editAuthor.ID == editObject.ID && (*updateRequest.AccessLevel == editObject.AccessLevel) && (editAuthor.AccessLevel == *updateRequest.AccessLevel)  {
+		// Prevent editing own access level
 		editAllowed = true
-	}
+	} 
+
 	if !editAllowed {
+		log.Printf("Edit Author: %v", editAuthor)
+		log.Printf("Edit Object: %v", editObject)
 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Edit request denied"})
 	}
 
@@ -234,6 +248,140 @@ func UpdateUser(c echo.Context) error {
 	}
 	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
 
+}
+
+func DeleteContentItem(c echo.Context) error { 
+	// Get the content ID
+	contentID := c.QueryParam("id")
+	if contentID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request: No content ID provided"})
+	}
+	db := c.Get("db").(*gorm.DB)
+
+	// Get the content from the DB
+	content := models.Content{}
+	if err := db.Where("id = ?", contentID).First(&content).Error; err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
+	}
+
+	//TODO Check if the user has the required access level
+	// Delete the content from the database
+	if err := db.Delete(&content).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error deleting content"})
+	}
+	// Delete the file from the bucket
+	if err := utils.DeleteFromSpace(content.FileName); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error deleting file"})
+	}
+	return c.JSON(http.StatusOK, map[string]string{"message": "Content deleted"})
+}
+
+func UpdateContent(c echo.Context) error { 
+	// Get the content ID
+	contentID := c.QueryParam("id")
+	if contentID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request: No content ID provided"})
+	}
+	db := c.Get("db").(*gorm.DB)
+	contentItem := models.Content{}
+	if err := db.Where("id = ?", contentID).First(&contentItem).Error; err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
+	}
+
+	permitted := utils.VerifyPermissions(2, c, utils.Target{
+		ContentItem: &contentItem,
+	})
+	if !permitted {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Insufficient permissions"})
+	}
+	var RequestData struct { 
+		id int `json:"id"`
+		Title string `json:"title"`
+		Description string `json:"description"`
+		Topics string `json:"topics"`
+		AltText string `json:"altText"`
+		Official bool `json:"official"`
+		formFile *multipart.File `json:"file"`
+		ContentType string `json:"type"`
+		url string `json:"url"`
+	}
+
+	err := c.Bind(&RequestData)
+	if err != nil {
+		log.Printf("Error binding data: %v", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request - Could not bind data"})
+	}
+	// // Get the FormData
+	// title := c.FormValue("title")
+	// description := c.FormValue("description")
+	// topics := c.FormValue("topics")
+	// altText := c.FormValue("altText")
+	// official := c.FormValue("official")
+	// // Get the file
+
+	// if RequestData.formFile != nil {
+	// 	// Assume the file need not be updated
+	// } else {
+	// 	if RequestData.formFile.Size > 10000000 {
+
+	// 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "File too large"})
+	// 	}
+	// }
+	// Check if the file is too large. 10MB Limit.
+
+	
+
+	// Validate the input and the user
+	if RequestData.Title == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Missing required fields"})
+	}
+
+	// Update the content object
+	contentItem.Title = RequestData.Title
+	contentItem.Description = RequestData.Description
+	contentItem.Topics = RequestData.Topics
+	contentItem.Official = RequestData.Official 
+	contentItem.AltText = RequestData.AltText
+
+	// if formFile != nil {
+	// 	// Remove File Metadata
+	// 	src, err := formFile.Open()
+	// 	if err != nil {
+	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error opening file"})
+	// 	}
+	// 	defer src.Close()
+
+	// 	file, err := utils.CleanFile(src)
+	// 	if err != nil {
+	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error removing metadata"})
+	// 	}
+
+	// 	file.Seek(0, io.SeekStart) // Reset file pointer to the start
+	// 	log.Printf("File: %v", file)
+
+	// 	// Upload the file to the bucket server
+	// 	fileKey := strings.Replace("material/sharepics/" + formFile.Filename, " ", "%20", -1)
+	// 	ErrUploading := utils.UploadToSpace(file, fileKey)
+	// 	if ErrUploading != nil {
+	// 		log.Printf("Error uploading file: %v", ErrUploading)
+	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error uploading file"})
+	// 	}
+
+	// 	// Update the URI
+	// 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/" + fileKey
+	// 	uri = url.PathEscape(uri)
+	// 	if !utils.IsValidURL(uri) {
+	// 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid File Name"})
+	// 	}
+	// 	contentItem.Uri = &uri
+	// 	contentItem.FileName = formFile.Filename
+	// }
+
+	if err := db.Save(&contentItem).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating content"})
+	}
+	
+	return c.JSON(http.StatusOK, map[string]string{"message": "Content updated"})
 }
 
 func Topics(c echo.Context) error {

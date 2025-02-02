@@ -15,4 +15,5 @@ type Content struct {
 	Topics string
 	Official bool
 	FileName string
+	Broken bool
 }
