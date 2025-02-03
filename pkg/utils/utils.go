@@ -89,25 +89,30 @@ func GenerateToken(email string, accessLevel int) (string, error) {
 
 func GetTopics() []string {
 	topics := []string{
-		"Klima",
+		"Klima & Umwelt",
 		"Frieden",
-		"Demokratie",
 		"Antifaschismus",
-		"Antidiskriminierung",
 		"Antikapitalismus",
 		"Feminismus",
-		"Queer",
-		"Dort und Agrar",
-		"Vielfalt",
-		"integration",
-		"Mieten",
-		"Mieten",
+		"Dorf & Agrar",
+		"Vielfalt & integration",
+		"Mieten & Wohnen",
 		"Soziale Gerechtigkeit",
-		"Bahn",
-		"Lebensmittel",
+		"Lebensmittelpreise",
+		"Rente",
+		"jugend & Familie",
+		"Klassiker",
 		"Infrastruktur",
-		"Arbeit und Inflation",
+		"Inflation",
 		"Klassenkampf",
+		"Bildung",
+		"Frieden & Sicherheit",
+		"Finanzen und Steuern",
+		"Sonstiges",
+		"Memes",
+		"Kultur & Sport",
+		"Gesundheit",
+		
 	}
 	return topics
 }
