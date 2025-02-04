@@ -3,7 +3,6 @@ package endpoints
 import (
 	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/utils"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	echo "github.com/labstack/echo/v4"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -60,6 +58,10 @@ func SearchContent(c echo.Context, queryParams url.Values) error {
 	return c.String(http.StatusInternalServerError, "Not Implemented")
 }
 
+// func CreateContentNew(c echo.Context) error {
+// 	// Verify the s
+// }
+
 func CreateContent(c echo.Context) error {
 	
 	// Get the FormData
@@ -85,38 +87,44 @@ func CreateContent(c echo.Context) error {
 	}
 
 	// Required Level to upload content
-	requiredAccess := 2
+	// requiredAccess := 2
 	// Check if the official checkbox is checked
-	isOfficial := official == "on"
-	if isOfficial {
-		requiredAccess = 1
-	}
+	
 
-	// Check if the user has the required access level
-	token, err := utils.GetToken(c)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "No token provided"})
-	}
-	claims, err := utils.GetTokenClaims(token)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "Invalid token")
-	}
 
 	// Get the database connection
 	db := c.Get("db").(*gorm.DB)
 
-	user := models.User{}
-	if err := db.Where("email = ?", claims.Email).First(&user).Error; err != nil {
-		return c.String(http.StatusUnauthorized, "Invalid token")
+	// user := models.User{}
+	// if err := db.Where("email = ?", claims.Email).First(&user).Error; err != nil {
+	// 	return c.String(http.StatusUnauthorized, "Invalid token")
+	// }
+	// if user.AccessLevel != claims.AccessLevel || user.Email != claims.Email {
+	// 	log.Printf("INVALID TOKEN USED!!! User: %v, Claims: %v", user, claims)
+	// 	return c.String(http.StatusUnauthorized, "Invalid token")
+	// }
+
+	ContentIsOfficial := official == "on"
+
+	userMetaData, err := utils.GetUserRoleData(c) 
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}
-	if user.AccessLevel != claims.AccessLevel || user.Email != claims.Email {
-		log.Printf("INVALID TOKEN USED!!! User: %v, Claims: %v", user, claims)
-		return c.String(http.StatusUnauthorized, "Invalid token")
+	
+	isAdmin := *userMetaData.Role == "admin" 
+	AuthOfficial := *userMetaData.Official || isAdmin
+
+	canUpload := false
+	if ContentIsOfficial {
+		canUpload = AuthOfficial
+	} else {
+		canUpload = isAdmin || *userMetaData.Upload
 	}
 
-	if user.AccessLevel > requiredAccess {
-		return c.String(http.StatusUnauthorized, "Insufficient access level. "+fmt.Sprint(requiredAccess)+" Required "+fmt.Sprint(claims.AccessLevel)+" Provided")
+	if !canUpload { 
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Insufficient permissions"})
 	}
+
 
 	// USER IS AUTHORIZED TO UPLOAD CONTENT
 	fileKey := "material/sharepics/" + strings.Replace(formFile.Filename, " ", "_", -1)
@@ -124,8 +132,11 @@ func CreateContent(c echo.Context) error {
 	uri := "https://ddl.fra1.cdn.digitaloceanspaces.com/material/sharepics/" + url.PathEscape(strings.Replace(formFile.Filename, " ", "_", -1))
 		
 	
-
-	content := models.Content{Title: title, Description: description, Topics: topics, Official: isOfficial || false, AuthorID: user.ID, FileName: formFile.Filename, FileKey: fileKey, Uri: &uri, AltText: altText}
+	usr, err := utils.GetUserFromContext(c) 
+	if err != nil { 
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Error getting user"})
+	}
+	content := models.Content{Title: title, Description: description, Topics: topics, Official: ContentIsOfficial || false, AuthorClerkID: usr.ID , FileName: formFile.Filename, FileKey: fileKey, Uri: &uri, AltText: altText}
 	var errorCreatingContent error
 
 	src, err := formFile.Open()
@@ -163,108 +174,108 @@ func CreateContent(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
 }
 
-type UpdateUserRequest struct {
-	ID          int     `json:"id"`
-	Email       *string `json:"email"`
-	Password    *string `json:"password"`
-	AccessLevel *int    `json:"accessLevel"`
-	Username    *string `json:"username"`
-}
+// type UpdateUserRequest struct {
+// 	ID          int     `json:"id"`
+// 	Email       *string `json:"email"`
+// 	Password    *string `json:"password"`
+// 	AccessLevel *int    `json:"accessLevel"`
+// 	Username    *string `json:"username"`
+// }
 
-func UpdateUser(c echo.Context) error {
-	// User who issued the request:
-	token, err := utils.GetToken(c)
-	if err != nil {
-		return c.JSON(401, map[string]string{"error": "No token provided"})
-	}
-	claims, err := utils.GetTokenClaims(token)
-	if err != nil {
-		return c.String(http.StatusUnauthorized, "Invalid token")
-	}
-	db := c.Get("db").(*gorm.DB)
+// func UpdateUser(c echo.Context) error {
+// 	// User who issued the request:
+// 	token, err := utils.GetToken(c)
+// 	if err != nil {
+// 		return c.JSON(401, map[string]string{"error": "No token provided"})
+// 	}
+// 	claims, err := utils.GetTokenClaims(token)
+// 	if err != nil {
+// 		return c.String(http.StatusUnauthorized, "Invalid token")
+// 	}
+// 	db := c.Get("db").(*gorm.DB)
 
-	editAuthor := models.User{}
-	err = db.Where("id = ?", claims.ID).First(&editAuthor).Error
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"message": "Error fetching user"})
-	}
+// 	editAuthor := models.User{}
+// 	err = db.Where("id = ?", claims.ID).First(&editAuthor).Error
+// 	if err != nil {
+// 		return c.JSON(http.StatusNotFound, map[string]string{"message": "Error fetching user"})
+// 	}
 
-	updateRequest := new(UpdateUserRequest)
-	err = c.Bind(&updateRequest)
-	if err != nil {
-		log.Printf("Error binding request: %v", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request"})
-	}
+// 	updateRequest := new(UpdateUserRequest)
+// 	err = c.Bind(&updateRequest)
+// 	if err != nil {
+// 		log.Printf("Error binding request: %v", err)
+// 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+// 	}
 
-	// Person to be updated
-	editObject := models.User{}
-	if err := db.Where("id = ?", updateRequest.ID).First(&editObject).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching user"})
-	}
+// 	// Person to be updated
+// 	editObject := models.User{}
+// 	if err := db.Where("id = ?", updateRequest.ID).First(&editObject).Error; err != nil {
+// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error fetching user"})
+// 	}
 
-	editingSelf := editAuthor.ID == editObject.ID
-	editAllowed := false
-	editingAccessLevel := false
-	if updateRequest.AccessLevel != nil {
-		editingAccessLevel = *updateRequest.AccessLevel != editObject.AccessLevel 
-	}
+// 	editingSelf := editAuthor.ID == editObject.ID
+// 	editAllowed := false
+// 	editingAccessLevel := false
+// 	if updateRequest.AccessLevel != nil {
+// 		editingAccessLevel = *updateRequest.AccessLevel != editObject.AccessLevel 
+// 	}
 
-	denialReason := "Edit request denied"
-	// Check if the user is editing themselves
+// 	denialReason := "Edit request denied"
+// 	// Check if the user is editing themselves
 	
-	if editingSelf { 
-		if editingAccessLevel { 
-			denialReason = "Edit request denied: Cannot change own access level"
-			editAllowed = false
-		} else {
-			editAllowed = true
-		}
-	} else if editAuthor.AccessLevel == 0 {
-		editAllowed = true
-	} else {
-		denialReason = "Edit request denied: Insufficient permissions"
-	}
+// 	if editingSelf { 
+// 		if editingAccessLevel { 
+// 			denialReason = "Edit request denied: Cannot change own access level"
+// 			editAllowed = false
+// 		} else {
+// 			editAllowed = true
+// 		}
+// 	} else if editAuthor.AccessLevel == 0 {
+// 		editAllowed = true
+// 	} else {
+// 		denialReason = "Edit request denied: Insufficient permissions"
+// 	}
 
 
-	if !editAllowed {
-		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Edit request denied: " + denialReason}) 
-	}
+// 	if !editAllowed {
+// 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Edit request denied: " + denialReason}) 
+// 	}
 
-	// Update user in Database
-	if editAllowed {
-		if updateRequest.Email != nil {
-			// Check for email uniqueness if email is being updated
-			if updateRequest.Email != nil && *updateRequest.Email != editObject.Email {
-				var count int64
-				db.Model(&models.User{}).Where("email = ?", *updateRequest.Email).Count(&count)
-				if count > 0 {
-					return c.JSON(http.StatusConflict, map[string]string{"message": "Email already in use"})
-				}
-			}
-			editObject.Email = *updateRequest.Email
-		}
-		if updateRequest.Password != nil {
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*updateRequest.Password), bcrypt.DefaultCost)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error hashing password"})
-			}
-			editObject.Password = string(hashedPassword)
-		}
-		if updateRequest.AccessLevel != nil {
-			editObject.AccessLevel = *updateRequest.AccessLevel
-		}
-		if updateRequest.Username != nil {
-			editObject.Username = updateRequest.Username
-		}
-		err := db.Save(&editObject)
-		if err.Error != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
-		}
-		return c.JSON(http.StatusOK, map[string]string{"message": "User updated"})
-	}
-	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
+// 	// Update user in Database
+// 	if editAllowed {
+// 		if updateRequest.Email != nil {
+// 			// Check for email uniqueness if email is being updated
+// 			if updateRequest.Email != nil && *updateRequest.Email != editObject.Email {
+// 				var count int64
+// 				db.Model(&models.User{}).Where("email = ?", *updateRequest.Email).Count(&count)
+// 				if count > 0 {
+// 					return c.JSON(http.StatusConflict, map[string]string{"message": "Email already in use"})
+// 				}
+// 			}
+// 			editObject.Email = *updateRequest.Email
+// 		}
+// 		if updateRequest.Password != nil {
+// 			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*updateRequest.Password), bcrypt.DefaultCost)
+// 			if err != nil {
+// 				return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error hashing password"})
+// 			}
+// 			editObject.Password = string(hashedPassword)
+// 		}
+// 		if updateRequest.AccessLevel != nil {
+// 			editObject.AccessLevel = *updateRequest.AccessLevel
+// 		}
+// 		if updateRequest.Username != nil {
+// 			editObject.Username = updateRequest.Username
+// 		}
+// 		err := db.Save(&editObject)
+// 		if err.Error != nil {
+// 			return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
+// 		}
+// 		return c.JSON(http.StatusOK, map[string]string{"message": "User updated"})
+// 	}
+// 	return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Error updating user"})
 
-}
+// }
 
 func DeleteContentItem(c echo.Context) error { 
 	// Get the content ID
@@ -309,9 +320,23 @@ func UpdateContent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"message": "Content not found"})
 	}
 
-	permitted := utils.VerifyPermissions(2, c, &utils.Target{
-		ContentItem: &contentItem,
-	})
+	// permitted := utils.VerifyPermissions(2, c, &utils.Target{
+	// 	ContentItem: &contentItem,
+	// })
+
+	// Permitted if either the user is an admin or the author of the content
+	userMetaData, err := utils.GetUserRoleData(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Error getting user"})
+	}
+	usr, err := utils.GetUserFromContext(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Error getting user"})
+	}
+	permitted := *userMetaData.Role == "admin" || contentItem.AuthorClerkID == usr.ID
+
+
+
 	if !permitted {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Insufficient permissions"})
 	}
@@ -328,7 +353,7 @@ func UpdateContent(c echo.Context) error {
 	// }
 
 
-	err := c.Request().ParseMultipartForm(10 << 20) // 10 MB limit
+	err = c.Request().ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
 		// Is not mutlipart form. That's okay
 	}
@@ -343,16 +368,10 @@ func UpdateContent(c echo.Context) error {
 	// Handle file upload
 	formFile, err := c.FormFile("file")
 	if err != nil {
-		log.Printf("File error: %v", err)
-		return err
-	}
-
-
-
-	if err != nil { 
-		log.Printf("Error Getting file: %v", err)
 		// This is not an error, the file is optional
+
 	}
+
 	// contentType := c.FormValue("type")
 	// url := c.FormValue("url")
 

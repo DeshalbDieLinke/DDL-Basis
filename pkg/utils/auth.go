@@ -11,12 +11,11 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
 type Target struct { 
 	ContentItem *models.Content
-	User *models.User
+	// User *models.User
 }
 
 // VerifyPermissions checks if the required permissions are met.
@@ -27,39 +26,39 @@ type Target struct {
 // Returns: A boolean indicating if the user has the required permissions.
 func VerifyPermissions(required int, c echo.Context, target *Target) bool {
 
-	token, err := GetToken(c)
+	usr, err := GetUserFromContext(c)
 	if err != nil {
 		return false
 	}
-	claims, err := GetTokenClaims(token)
+
+	userMetaData, err := GetUserRoleData(c) 
 	if err != nil {
 		return false
 	}
+
+
 	// Validate the user exists and has the required permissions
-	db := c.Get("db").(*gorm.DB)
-	user := models.User{}
-	if err := db.Where("id = ?", claims.ID).First(&user).Error; err != nil {
-		return false
-	}
-	if user.AccessLevel != claims.AccessLevel {
-		log.Printf("WARNING!! Access level mismatch: %v != %v", user.AccessLevel, claims.AccessLevel)
-		return false
-	} else if user.Email != claims.Email {
-		log.Printf("WARNING!! Email mismatch: %v != %v", user.Email, claims.Email)
-		return false
-	}
+	// db := c.Get("db").(*gorm.DB)
+	// // user := models.User{}
+	// if err := db.Where("id = ?", claims.ID).First(&user).Error; err != nil {
+	// 	return false
+	// }
+	// if user.AccessLevel != claims.AccessLevel {
+	// 	log.Printf("WARNING!! Access level mismatch: %v != %v", user.AccessLevel, claims.AccessLevel)
+	// 	return false
+	// } else if user.Email != claims.Email {
+	// 	log.Printf("WARNING!! Email mismatch: %v != %v", user.Email, claims.Email)
+	// 	return false
+	// }
 
 
-	if user.AccessLevel == 0 { 
+	if *userMetaData.Role == "admin" { 
 		return true
-	} else if target != nil {
+	} else if target == nil {
 		// IF the target is not set Admin permissions are required
 		return false
 	}
-	if target.ContentItem != nil && target.ContentItem.AuthorID == user.ID {
-		return true
-	}
-	if target.User != nil && target.User.ID == user.ID {
+	if target.ContentItem != nil && target.ContentItem.AuthorClerkID == usr.ID {
 		return true
 	}
 	return false

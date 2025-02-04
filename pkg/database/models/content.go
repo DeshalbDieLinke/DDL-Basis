@@ -12,7 +12,8 @@ type Content struct {
 	AltText string
 	Uri *string
 	FileKey string
-	AuthorID uint 
+	AuthorID uint
+	AuthorClerkID string
 	Topics string
 	Official bool
 	FileName string

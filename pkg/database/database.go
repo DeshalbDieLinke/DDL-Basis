@@ -1,7 +1,6 @@
 package database
 
 import (
-	"ddl-server/pkg/database/models"
 	content "ddl-server/pkg/database/models"
 
 	// "ddl-server/pkg/utils"
@@ -31,7 +30,7 @@ func StartDatabase() *gorm.DB{
 
 	// Migrate the schema
 	db.AutoMigrate(&content.Content{})
-	db.AutoMigrate(&models.User{})
+	// db.AutoMigrate(&models.User{})
 	// contentItems, err := utils.GetMaterial()
 	// if err != nil { 
 	// 	print("Error getting material")

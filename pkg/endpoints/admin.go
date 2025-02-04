@@ -1,13 +1,11 @@
 package endpoints
 
 import (
-	"ddl-server/pkg/database/models"
 	"ddl-server/pkg/utils"
 	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
 // GetUsers Returns JSON data for users in the database
@@ -23,9 +21,9 @@ func GetUsers(c echo.Context) error {
 	if claims.AccessLevel != 0 {
 		return c.String(http.StatusUnauthorized, "Insufficient access level. 0 Required "+fmt.Sprint(claims.AccessLevel)+" Provided")
 	}
-	db := c.Get("db").(*gorm.DB)
+	// db := c.Get("db").(*gorm.DB)
 
-	var users []models.User
-	db.Find(&users)
-	return c.JSON(http.StatusOK, map[string]interface{}{"message": "Welcome to the admin panel", "users": users})
+	// var users []models.User
+	// db.Find(&users)
+	return c.JSON(http.StatusOK, map[string]interface{}{"message": "Welcome to the admin panel", "users": "NOT IMPLEMENTED"})
 }
