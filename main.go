@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	jwtE "github.com/labstack/echo-jwt/v4"
@@ -32,6 +33,9 @@ func main() {
 	e := echo.New()
 
 	var SECRET_KEY = []byte(os.Getenv("JWT_SECRET"))
+
+	var CLERK_KEY = os.Getenv("CLERK_KEY")
+	clerk.SetKey(CLERK_KEY)
 
 	// Register middleware
 	e.Use(database.GormMiddleware(db))
@@ -74,6 +78,7 @@ func main() {
 	e.GET("/content", endpoints.GetContent)
 	e.GET("/profile", endpoints.Profile)
 	e.GET("/logout", endpoints.Logout)
+	e.GET("/user-created", endpoints.UserCreated)
 	e.POST("/content/delete", endpoints.DeleteContentItem)
 	// Register a catch-all route
 	e.Any("/*", func(context echo.Context) error {
@@ -109,7 +114,7 @@ func main() {
 	}
 
 	delta1 := time.Now()
-	utils.SyncFileContent(db)
+	// utils.SyncFileContent(db)
 	delta2 := time.Now()
 	log.Printf("Syncing content took: %v", delta2.Sub(delta1))
 	// Start the server
