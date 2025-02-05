@@ -110,15 +110,26 @@ func CreateContent(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}
-	
-	isAdmin := *userMetaData.Role == "admin" 
-	AuthOfficial := *userMetaData.Official || isAdmin
+	if userMetaData == nil { 
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "No user metadata found"})
+	}
 
 	canUpload := false
+	isAdmin := false
+	AuthOfficial := false
+	if userMetaData.Role != nil  { 
+		isAdmin = *userMetaData.Role == "admin" 
+
+	}
+	if userMetaData.Official != nil {
+		AuthOfficial = *userMetaData.Official || isAdmin
+	}
+
 	if ContentIsOfficial {
 		canUpload = AuthOfficial
 	} else {
-		canUpload = isAdmin || *userMetaData.Upload
+		if userMetaData.Upload != nil { 
+		canUpload = isAdmin || *userMetaData.Upload }
 	}
 
 	if !canUpload { 
