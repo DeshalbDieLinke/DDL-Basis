@@ -36,13 +36,12 @@ func main() {
 	e.Use(database.GormMiddleware(db))
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	// e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-	// 	// NO TRAILING / ALLOWED
-	// 	AllowOrigins:     []string{"*"},
-	// 	AllowMethods:     []string{echo.GET, echo.POST, echo.OPTIONS},
-	// 	AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "credentials"},
-	// 	AllowCredentials: true,
-	// }))
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		// NO TRAILING / ALLOWED
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{echo.GET}
+	})
+	)
 	// log.Printf("Allowed origins: %v", []string{ALLOWED_ORIGINS})
 	// e.Use(jwtE.WithConfig(jwtE.Config{
 	// 	Skipper: func(c echo.Context) bool {
