@@ -30,8 +30,7 @@ func main() {
 
 	var CLERK_KEY = os.Getenv("CLERK_KEY")
 
-	var ALLOWED_ORIGINS = os.Getenv("ALLOWED_ORIGINS")
-
+	var ALLOWED_ORIGINS = "http://192.168.0.194:3000"
 	clerk.SetKey(CLERK_KEY)
 
 	// Register middleware
